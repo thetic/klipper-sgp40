@@ -68,7 +68,7 @@ class SGP40:
                     return params
                 if retries <= 0:
                     self.serial.register_response(None, self.name, self.oid)
-                    raise error("Unable to obtain '%s' response" % (self.name,))
+                    raise Exception("Unable to obtain '%s' response" % (self.name,))
                 reactor = self.serial.reactor
                 reactor.pause(reactor.monotonic() + retry_delay)
                 retries -= 1
@@ -98,14 +98,14 @@ class SGP40:
         self.sample_timer = self.reactor.register_timer(self._sample_sgp40)
 
     def _sample_sgp40(self, eventtime):
-        if self.temp_sensor != None:
+        if self.temp_sensor is not None:
             self.temp = self.printer.lookup_object(
                 "{}".format(self.temp_sensor)
             ).get_status(eventtime)["temperature"]
         else:
             # Temperatures defaults to 25C
             self.temp = 25
-        if self.humidity_sensor != None:
+        if self.humidity_sensor is not None:
             try:
                 self.humidity = self.printer.lookup_object(
                     "{}".format(self.humidity_sensor)
@@ -144,7 +144,7 @@ class SGP40:
         self.i2c.i2c_write(cmd)
 
         if reply_len == 0:
-            return None
+            return []
 
         # Wait
         self.reactor.pause(self.reactor.monotonic() + wait_time_s)
@@ -156,7 +156,7 @@ class SGP40:
 
         for i in range(0, reply_len, 3):
             if not self._check_crc8(response[i : i + 2], response[i + 2]):
-                logging.warn("sgp40: Checksum error on read!")
+                logging.warning("sgp40: Checksum error on read!")
             data.append(unpack_from(">H", response[i : i + 2])[0])
 
         return data
@@ -183,7 +183,7 @@ class SGP40:
         crc = 0xFF
         for i in range(2):
             crc ^= data[i]
-            for bit in range(8):
+            for _ in range(8):
                 if crc & 0x80:
                     crc = (crc << 1) ^ 0x31
                 else:
