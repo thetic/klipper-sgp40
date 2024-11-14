@@ -15,11 +15,12 @@ SGP40_CHIP_ADDR = 0x59
 SGP40_WORD_LEN = 2
 
 SGP40_CMD = {
-    "GET_SERIAL" : [0x36, 0x82],
-    "SOFT_RESET" : [0x00, 0x06],
-    "SELF_TEST" : [0x28, 0x0E],
-    "MEASURE_RAW_NO_COMP" : [0x26, 0x0F, 0x80, 0x00, 0xA2, 0x66, 0x66, 0x93]
+    "GET_SERIAL": [0x36, 0x82],
+    "SOFT_RESET": [0x00, 0x06],
+    "SELF_TEST": [0x28, 0x0E],
+    "MEASURE_RAW_NO_COMP": [0x26, 0x0F, 0x80, 0x00, 0xA2, 0x66, 0x66, 0x93],
 }
+
 
 class SGP40:
     def __init__(self, config):
@@ -27,26 +28,26 @@ class SGP40:
         self.name = config.get_name().split()[-1]
         self.reactor = self.printer.get_reactor()
         self.i2c = bus.MCU_I2C_from_config(
-            config, default_addr=SGP40_CHIP_ADDR, default_speed=100000)
-        self.temp_sensor = config.get('ref_temp_sensor', None)
-        self.humidity_sensor = config.get('ref_humidity_sensor', None)
-        self.voc_scale = config.getfloat('voc_scale', 1. )
+            config, default_addr=SGP40_CHIP_ADDR, default_speed=100000
+        )
+        self.temp_sensor = config.get("ref_temp_sensor", None)
+        self.humidity_sensor = config.get("ref_humidity_sensor", None)
+        self.voc_scale = config.getfloat("voc_scale", 1.0)
         self.mcu = self.i2c.get_mcu()
         self.raw = 0
         self.voc = 0
         self.temp = 0
         self.humidity = 0
         self.min_temp = self.max_temp = 0
-        self.plot_voc = config.getboolean('plot_voc', False)
+        self.plot_voc = config.getboolean("plot_voc", False)
         self.max_sample_time = 1
         self.sample_timer = None
         self.printer.add_object("sgp40 " + self.name, self)
         self._voc_algorithm = VOCAlgorithm()
         self._voc_algorithm.vocalgorithm_init()
-        if self.printer.get_start_args().get('debugoutput') is not None:
+        if self.printer.get_start_args().get("debugoutput") is not None:
             return
-        self.printer.register_event_handler("klippy:connect",
-                                            self.handle_connect)
+        self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
     def handle_connect(self):
         self._init_sgp40()
@@ -55,12 +56,11 @@ class SGP40:
         # This is harcoded in serialhdl.py in Klipper
         def get_response(self, cmds, cmd_queue, minclock=0, reqclock=0):
             retries = 15
-            retry_delay = .010
+            retry_delay = 0.010
             while 1:
                 for cmd in cmds[:-1]:
                     self.serial.raw_send(cmd, minclock, reqclock, cmd_queue)
-                self.serial.raw_send_wait_ack(cmds[-1], minclock, reqclock,
-                                              cmd_queue)
+                self.serial.raw_send_wait_ack(cmds[-1], minclock, reqclock, cmd_queue)
                 params = self.last_params
                 if params is not None:
                     self.serial.register_response(None, self.name, self.oid)
@@ -71,7 +71,8 @@ class SGP40:
                 reactor = self.serial.reactor
                 reactor.pause(reactor.monotonic() + retry_delay)
                 retries -= 1
-                retry_delay *= 2.
+                retry_delay *= 2.0
+
         self.i2c.i2c_read_cmd._xmit_helper.get_response = get_response
 
         self.reactor.update_timer(self.sample_timer, self.reactor.NOW)
@@ -87,47 +88,57 @@ class SGP40:
         return SGP40_REPORT_TIME
 
     def _init_sgp40(self):
-        
+
         # Self test
-        self_test = self._read_and_check(SGP40_CMD["SELF_TEST"], wait_time_s = 0.5)
+        self_test = self._read_and_check(SGP40_CMD["SELF_TEST"], wait_time_s=0.5)
         if self_test[0] != 0xD400:
-           logging.error("sgp40: Self test error")
-		
+            logging.error("sgp40: Self test error")
+
         self.sample_timer = self.reactor.register_timer(self._sample_sgp40)
 
     def _sample_sgp40(self, eventtime):
         if self.temp_sensor != None:
-            self.temp = self.printer.lookup_object("{}".format(self.temp_sensor)).get_status(eventtime)["temperature"]
+            self.temp = self.printer.lookup_object(
+                "{}".format(self.temp_sensor)
+            ).get_status(eventtime)["temperature"]
         else:
             # Temperatures defaults to 25C
             self.temp = 25
         if self.humidity_sensor != None:
             try:
-                self.humidity = self.printer.lookup_object("{}".format(self.humidity_sensor)).get_status(eventtime)["humidity"]
+                self.humidity = self.printer.lookup_object(
+                    "{}".format(self.humidity_sensor)
+                ).get_status(eventtime)["humidity"]
             except KeyError:
-                 self.humidity = 50
+                self.humidity = 50
         else:
             # Interpolate relative humidity assuming a CLOSED chamber and INITIAL 50% HUMIDITY at 25C;
-	        #   humidity = P(water_vapour) / P(saturation_vapour_pressure)
-            #   
-	        #   Relationship between temp and saturation vapor pressure:
+            #   humidity = P(water_vapour) / P(saturation_vapour_pressure)
+            #
+            #   Relationship between temp and saturation vapor pressure:
             #     https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-d_599.html
-            #     
+            #
             #   Approximate change in Saturation Vapor pressure at temperature T [25<T<80]
-	        #     P(Saturation_vapor_pressure_T) / P(Saturation_vapor_pressure_25C) = exp(0.0499860*T - 1.1674630)
-            self.humidity = 50. / math.exp(0.0499860*self.temp - 1.1674630)
-        cmd = [0x26, 0x0F] + self._humidity_to_ticks(self.humidity) + self._temperature_to_ticks(self.temp)
+            #     P(Saturation_vapor_pressure_T) / P(Saturation_vapor_pressure_25C) = exp(0.0499860*T - 1.1674630)
+            self.humidity = 50.0 / math.exp(0.0499860 * self.temp - 1.1674630)
+        cmd = (
+            [0x26, 0x0F]
+            + self._humidity_to_ticks(self.humidity)
+            + self._temperature_to_ticks(self.temp)
+        )
         value = self._read_and_check(cmd)
         self.raw = value[0]
 
         self.voc = self._voc_algorithm.vocalgorithm_process(self.raw)
 
         measured_time = self.reactor.monotonic()
-        self._callback(self.mcu.estimated_print_time(measured_time), self.voc * self.voc_scale)
+        self._callback(
+            self.mcu.estimated_print_time(measured_time), self.voc * self.voc_scale
+        )
         return measured_time + SGP40_REPORT_TIME
 
     def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
-        reply_len = read_len * (SGP40_WORD_LEN + 1) # CRC every word
+        reply_len = read_len * (SGP40_WORD_LEN + 1)  # CRC every word
 
         self.i2c.i2c_write(cmd)
 
@@ -137,8 +148,8 @@ class SGP40:
         # Wait
         self.reactor.pause(self.reactor.monotonic() + wait_time_s)
 
-        params = self.i2c.i2c_read([],reply_len)
-        response = bytearray(params['response'])
+        params = self.i2c.i2c_read([], reply_len)
+        response = bytearray(params["response"])
 
         data = []
 
@@ -181,13 +192,13 @@ class SGP40:
     def get_status(self, eventtime):
         # HACKL can only plot on mainsail/fluidd if VOC index is a temperature
         if self.plot_voc:
-            return {"temperature": self.voc * self.voc_scale }
+            return {"temperature": self.voc * self.voc_scale}
         else:
             return {
-              'temperature': self.temp,
-              'humidity': self.humidity,
-              'gas': self.raw,
-	      'voc': self.voc * self.voc_scale
+                "temperature": self.temp,
+                "humidity": self.humidity,
+                "gas": self.raw,
+                "voc": self.voc * self.voc_scale,
             }
 
 
