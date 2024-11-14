@@ -6,8 +6,9 @@
 
 import logging
 import math
-from . import bus
 from struct import unpack_from
+
+from . import bus
 from .voc_algorithm import VOCAlgorithm
 
 SGP40_REPORT_TIME = 1
