@@ -95,11 +95,14 @@ ref_humidity_sensor: bme280 BME_IN
 ## Mainsail
 
 In order to display the full VOC sensor information in Mainsail,
-the following command needs to be run **once**:
+the following command needs to be run:
 
 ```sh
 ~/klipper-sgp40/patch-mainsail.sh
 ```
+
+> [!IMPORTANT]
+> This command will need to be run each time Mainsail is updated.
 
 If your directory structure differs from the usual setup,
 you can configure the script with parameters:
@@ -107,9 +110,6 @@ you can configure the script with parameters:
 ```
 ~/klipper-sgp40/patch-mainsail.sh [-m <mainsail path>]
 ```
-
-> [!IMPORTANT]
-> This command will need to be run each time Mainsail is updated.
 
 ## Attribution
 

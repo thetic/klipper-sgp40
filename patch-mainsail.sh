@@ -4,14 +4,18 @@ MAINSAIL_PATH=${HOME}/mainsail
 
 usage() {
     echo "Usage: $0 [-m <mainsail_path>]" 1>&2
-    exit 1
 }
+
 # Parse command line arguments
 while getopts "m:h" arg; do
     case $arg in
     m) MAINSAIL_PATH=$OPTARG ;;
-    *) usage ;;
+    h) usage ;;
+    *)
+        usage
+        exit 1
+        ;;
     esac
 done
 
-grep -l -R additionalSensors -- "${MAINSAIL_PATH}" | xargs sed -i 's+additionalSensors=\[+additionalSensors=\["sgp40",+g'
+grep -lRZ additionalSensors -- "${MAINSAIL_PATH}" | xargs -0 sed -i -e 's/,"htu21d"/\0,"sgp40"/g' -e 's/\(,"sgp40"\)\+/\1/g'
