@@ -10,14 +10,14 @@ The module can be installed into a existing Klipper installation with an install
 cd ~
 git clone https://github.com/thetic/klipper-sgp40.git
 cd klipper-sgp40
-./install.sh
+./scripts/install.sh
 ```
 
 If your directory structure differs from the usual setup,
 you can configure the installation script with parameters:
 
 ```
-./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>]
+./scripts/install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>]
 ```
 
 ## Configuration
@@ -98,7 +98,7 @@ In order to display the full VOC sensor information in Mainsail,
 the following command needs to be run:
 
 ```sh
-~/klipper-sgp40/patch-mainsail.sh
+~/klipper-sgp40/scripts/patch-mainsail.sh
 ```
 
 > [!IMPORTANT]
@@ -108,7 +108,7 @@ If your directory structure differs from the usual setup,
 you can configure the script with parameters:
 
 ```
-~/klipper-sgp40/patch-mainsail.sh [-m <mainsail path>]
+~/klipper-sgp40/scripts/patch-mainsail.sh [-m <mainsail path>]
 ```
 
 ## Attribution
