@@ -1,6 +1,6 @@
 # Klipper SGP40 Support
 
-This is a Klipper module that provides support for monitoring VOCs using the SGP40 sensor.
+This is a [Klipper](https://www.klipper3d.org/) module that provides support for monitoring [VOCs](https://en.wikipedia.org/wiki/Volatile_organic_compound) using the SGP40 sensor.
 
 ## Installation instructions
 
@@ -18,6 +18,16 @@ you can configure the installation script with parameters:
 
 ```
 ./scripts/install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>]
+```
+
+Then, add the following to your `moonraker.conf` to enable automatic updates:
+
+```ini
+[update_manager klipper-sgp40]
+type: git_repo
+path: ~/klipper-sgp40
+origin: https://github.com/thetic/klipper-sgp40.git
+is_system_service: False
 ```
 
 ## Configuration
@@ -94,7 +104,7 @@ ref_humidity_sensor: bme280 BME_IN
 
 ## Mainsail
 
-In order to display the full VOC sensor information in Mainsail,
+In order to display the full VOC sensor information in [Mainsail](https://docs.mainsail.xyz/),
 the following command needs to be run:
 
 ```sh

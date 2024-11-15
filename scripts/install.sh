@@ -5,26 +5,21 @@ set -e
 
 KLIPPER_PATH="${HOME}/klipper"
 KLIPPER_SERVICE_NAME=klipper
-MOONRAKER_CONFIG_DIR="${HOME}/printer_data/config"
-
-# Fall back to old directory for configuration as default
-if [ ! -d "${MOONRAKER_CONFIG_DIR}" ]; then
-    echo "\"$MOONRAKER_CONFIG_DIR\" does not exist. Falling back to "${HOME}/klipper_config" as default."
-    MOONRAKER_CONFIG_DIR="${HOME}/klipper_config"
-fi
 
 usage() {
     echo "Usage: $0 [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-u]" 1>&2
-    exit 1
 }
 # Parse command line arguments
 while getopts "k:s:c:uh" arg; do
     case $arg in
     k) KLIPPER_PATH=$OPTARG ;;
     s) KLIPPER_SERVICE_NAME=$OPTARG ;;
-    c) MOONRAKER_CONFIG_DIR=$OPTARG ;;
     u) UNINSTALL=1 ;;
     h) usage ;;
+    *)
+        usage
+        exit 1
+        ;;
     esac
 done
 
@@ -47,12 +42,6 @@ check_folders() {
         exit -1
     fi
     echo "Klipper installation found at $KLIPPER_PATH"
-
-    if [ ! -f "${MOONRAKER_CONFIG_DIR}/moonraker.conf" ]; then
-        echo "[ERROR] Moonraker configuration not found in directory \"$MOONRAKER_CONFIG_DIR\". Exiting"
-        exit -1
-    fi
-    echo "Moonraker configuration found at $MOONRAKER_CONFIG_DIR"
 }
 
 # Link extension to Klipper
@@ -68,24 +57,6 @@ restart_moonraker() {
     echo -n "Restarting Moonraker... "
     sudo systemctl restart moonraker
     echo "[OK]"
-}
-
-# Add updater to moonraker.conf
-add_updater() {
-    echo -e -n "Adding update manager to moonraker.conf... "
-
-    update_section=$(grep -c '\[update_manager klipper-sgp40\]' ${MOONRAKER_CONFIG_DIR}/moonraker.conf || true)
-    if [ "${update_section}" -eq 0 ]; then
-        echo -e "\n" >>${MOONRAKER_CONFIG_DIR}/moonraker.conf
-        while read -r line; do
-            echo -e "${line}" >>${MOONRAKER_CONFIG_DIR}/moonraker.conf
-        done <"$PWD/file_templates/moonraker.conf"
-        echo -e "\n" >>${MOONRAKER_CONFIG_DIR}/moonraker.conf
-        echo "[OK]"
-        restart_moonraker
-    else
-        echo -e "[update_manager klipper-sgp40] already exists in moonraker.conf [SKIPPED]"
-    fi
 }
 
 restart_klipper() {
@@ -131,7 +102,6 @@ check_folders
 stop_klipper
 if [ ! $UNINSTALL ]; then
     link_extension
-    add_updater
 else
     uninstall
 fi
