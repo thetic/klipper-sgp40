@@ -8,8 +8,8 @@ The module can be installed into a existing Klipper installation with an install
 
 ```sh
 cd ~
-git clone https://github.com/thetic/klipper-nevermore.git
-cd klipper-nevermore
+git clone https://github.com/thetic/klipper-sgp40.git
+cd klipper-sgp40
 ./install.sh
 ```
 
@@ -17,17 +17,19 @@ If your directory structure differs from the usual setup,
 you can configure the installation script with parameters:
 
 ```
-./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>]
+./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-v <klippy venv path>] [-u] 1>&2
 ```
 
 Then, add the following to your `moonraker.conf` to enable automatic updates:
 
 ```ini
-[update_manager klipper-nevermore]
+[update_manager klipper-sgp40]
 type: git_repo
-path: ~/klipper-nevermore
-origin: https://github.com/thetic/klipper-nevermore.git
-is_system_service: False
+path: ~/klipper-sgp40
+virtualenv: ~/klippy-env
+requirements: requirements.txt
+origin: https://github.com/thetic/klipper-sgp40.git
+managed_services: klipper
 ```
 
 ## Configuration
@@ -35,31 +37,27 @@ is_system_service: False
 ```ini
 [sgp40]
 
-[temperature_sensor voc_exhaust]
-sensor_type: NevermoreSensor
-#i2c_mcu: mcu
-#   The name of the micro-controller that the chip is connected to.
-#   The default is "mcu".
+[temperature_sensor my_sensor]
+sensor_type: SGP40
+#i2c_address: 89
+#   Default is 89 (0x59).
+#i2c_mcu:
 #i2c_bus:
-#   If the micro-controller supports multiple I2C buses then one may
-#   specify the micro-controller bus name here. The default depends on
-#   the type of micro-controller.
+#i2c_software_scl_pin:
+#i2c_software_sda_pin:
 #i2c_speed: 100000
-#   The I2C speed (in Hz) to use when communicating with the device.
-#   The Klipper implementation on most micro-controllers is hard-coded
-#   to 100000 and changing this value has no effect. The default is
-#   100000.
+#   See the "common I2C settings" at
+#   https://www.klipper3d.org/Config_Reference.html#common-i2c-settings
+#   for a description of the above parameters.
+#   The default "i2c_speed" is 100000.
 #ref_temp_sensor:
 #   The name of the temperature sensor to use as reference for temperature
-#   compensation of the VOC raw measurement.
+#   compensation of the VOC raw measurement. If not defined calculations
+#   will assume 25°C.
 #ref_humidity_sensor:
 #   The name of the temperature sensor to use as reference for humidity
-#   compensation of the VOC raw measurement.
-#plot_voc: False
-#   Limit output to output only VOC instead of all parameters.
-#   The default is False.
-#voc_scale: 1.0
-#   Scale factor to adjust VOC output for plotting. The default is 1.0.
+#   compensation of the VOC raw measurement. If not defined calculations
+#   will assume 50% humidity.
 ```
 
 ### Example
@@ -88,14 +86,14 @@ i2c_mcu: nevermore
 i2c_bus: i2c2_PB10_PB11
 
 [temperature_sensor SGP_OUT]
-sensor_type: NevermoreSensor
+sensor_type: SGP40
 i2c_mcu: nevermore
 i2c_bus: i2c1_PB8_PB9
 ref_temp_sensor: bme280 BME_OUT
 ref_humidity_sensor: bme280 BME_OUT
 
 [temperature_sensor SGP_IN]
-sensor_type: NevermoreSensor
+sensor_type: SGP40
 i2c_mcu: nevermore
 i2c_bus: i2c2_PB10_PB11
 ref_temp_sensor: bme280 BME_IN
@@ -104,7 +102,5 @@ ref_humidity_sensor: bme280 BME_IN
 
 ## Attribution
 
-- This project was adapted from the [Nevermore Max](https://github.com/nevermore3d/Nevermore_Max) project.
-- Configuration and interfaces mimic those from the [Nevermore Controller](https://github.com/SanaaHamel/nevermore-controller) project.
-- The [voc_algorithm.py](src/voc_algorithm.py) module is a modified version of the module found in the [Adafruit CircuitPython SGP40 repository](https://github.com/adafruit/Adafruit_CircuitPython_SGP40).
-- Installation scripts were adapted from the [LED Effects for Klipper](https://github.com/julianschill/klipper-led_effect) project.
+- This project was adapted from the [Pull Request against Klipper](https://github.com/Klipper3d/klipper/pull/6738) by Stefan Dej
+  which was itself adapted from the [Nevermore Max](https://github.com/nevermore3d/Nevermore_Max) project.

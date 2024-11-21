@@ -1,13 +1,16 @@
 [project]
-name = "klipper-nevermore"
-dynamic = ["version"]
-requires-python = ">=3.9"
-authors = [{ name = "Chad Condon" }]
-description = "Native Klipper support for VOC sensors"
+name = "klipper-sgp40"
+dynamic = ["dependencies", "version"]
+requires-python = ">=3.6"
+authors = [
+  { name = "Stefan Dej", email = "meteyou@gmail.com" },
+  { name = "Adrien Le Masle" },
+  { name = "Chad Condon" },
+]
+description = "Native Klipper support for SGP40 sensor"
 readme = "README.md"
 
 [dependency-groups]
-test = ["pytest"]
 dev = ["ruff ~= 0.7"]
 
 [build-system]
@@ -19,7 +22,7 @@ select = ["E4", "E7", "E9", "F", "B", "I"]
 ignore = ["E501"]
 unfixable = ["B"]
 
-[tool.setuptools_scm]
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
 
-[tool.uv]
-default-groups = ["dev", "test"]
+[tool.setuptools_scm]
