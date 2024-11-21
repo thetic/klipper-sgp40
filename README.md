@@ -1,4 +1,4 @@
-# Klipper SGP40 Support
+# Klipper Nevermore
 
 This is a [Klipper](https://www.klipper3d.org/) module that provides support for monitoring [VOCs](https://en.wikipedia.org/wiki/Volatile_organic_compound) using the SGP40 sensor.
 
@@ -8,25 +8,25 @@ The module can be installed into a existing Klipper installation with an install
 
 ```sh
 cd ~
-git clone https://github.com/thetic/klipper-sgp40.git
-cd klipper-sgp40
-./scripts/install.sh
+git clone https://github.com/thetic/klipper-nevermore.git
+cd klipper-nevermore
+./install.sh
 ```
 
 If your directory structure differs from the usual setup,
 you can configure the installation script with parameters:
 
 ```
-./scripts/install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>]
+./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>]
 ```
 
 Then, add the following to your `moonraker.conf` to enable automatic updates:
 
 ```ini
-[update_manager klipper-sgp40]
+[update_manager klipper-nevermore]
 type: git_repo
-path: ~/klipper-sgp40
-origin: https://github.com/thetic/klipper-sgp40.git
+path: ~/klipper-nevermore
+origin: https://github.com/thetic/klipper-nevermore.git
 is_system_service: False
 ```
 
@@ -36,7 +36,7 @@ is_system_service: False
 [sgp40]
 
 [temperature_sensor voc_exhaust]
-sensor_type: SGP40
+sensor_type: NevermoreSensor
 #i2c_mcu: mcu
 #   The name of the micro-controller that the chip is connected to.
 #   The default is "mcu".
@@ -88,41 +88,23 @@ i2c_mcu: nevermore
 i2c_bus: i2c2_PB10_PB11
 
 [temperature_sensor SGP_OUT]
-sensor_type: SGP40
+sensor_type: NevermoreSensor
 i2c_mcu: nevermore
 i2c_bus: i2c1_PB8_PB9
 ref_temp_sensor: bme280 BME_OUT
 ref_humidity_sensor: bme280 BME_OUT
 
 [temperature_sensor SGP_IN]
-sensor_type: SGP40
+sensor_type: NevermoreSensor
 i2c_mcu: nevermore
 i2c_bus: i2c2_PB10_PB11
 ref_temp_sensor: bme280 BME_IN
 ref_humidity_sensor: bme280 BME_IN
 ```
 
-## Mainsail
-
-In order to display the full VOC sensor information in [Mainsail](https://docs.mainsail.xyz/),
-the following command needs to be run:
-
-```sh
-~/klipper-sgp40/scripts/patch-mainsail.sh
-```
-
-> [!IMPORTANT]
-> This command will need to be run each time Mainsail is updated.
-
-If your directory structure differs from the usual setup,
-you can configure the script with parameters:
-
-```
-~/klipper-sgp40/scripts/patch-mainsail.sh [-m <mainsail path>]
-```
-
 ## Attribution
 
 - This project was adapted from the [Nevermore Max](https://github.com/nevermore3d/Nevermore_Max) project.
-- The [voc_algorithm.py](src/voc_algorithm.py) module is a slightly modified version of the module found in the [Adafruit CircuitPython SGP40 repository](https://github.com/adafruit/Adafruit_CircuitPython_SGP40).
+- Configuration and interfaces mimic those from the [Nevermore Controller](https://github.com/SanaaHamel/nevermore-controller) project.
+- The [voc_algorithm.py](src/voc_algorithm.py) module is a modified version of the module found in the [Adafruit CircuitPython SGP40 repository](https://github.com/adafruit/Adafruit_CircuitPython_SGP40).
 - Installation scripts were adapted from the [LED Effects for Klipper](https://github.com/julianschill/klipper-led_effect) project.

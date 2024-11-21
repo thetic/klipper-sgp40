@@ -1,0 +1,25 @@
+[project]
+name = "klipper-nevermore"
+dynamic = ["version"]
+requires-python = ">=3.9"
+authors = [{ name = "Chad Condon" }]
+description = "Native Klipper support for VOC sensors"
+readme = "README.md"
+
+[dependency-groups]
+test = ["pytest"]
+dev = ["ruff ~= 0.7"]
+
+[build-system]
+requires = ["setuptools >= 64", "setuptools-scm >= 8"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "I"]
+ignore = ["E501"]
+unfixable = ["B"]
+
+[tool.setuptools_scm]
+
+[tool.uv]
+default-groups = ["dev", "test"]
