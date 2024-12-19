@@ -6,8 +6,9 @@
 
 import logging
 import math
-from . import bus
 from struct import unpack_from
+
+from . import bus
 from .voc_algorithm import VOCAlgorithm
 
 SGP40_REPORT_TIME = 1
@@ -67,7 +68,7 @@ class SGP40:
                     return params
                 if retries <= 0:
                     self.serial.register_response(None, self.name, self.oid)
-                    raise error("Unable to obtain '%s' response" % (self.name,))
+                    raise Exception("Unable to obtain '%s' response" % (self.name,))
                 reactor = self.serial.reactor
                 reactor.pause(reactor.monotonic() + retry_delay)
                 retries -= 1
@@ -96,14 +97,14 @@ class SGP40:
         self.sample_timer = self.reactor.register_timer(self._sample_sgp40)
 
     def _sample_sgp40(self, eventtime):
-        if self.temp_sensor != None:
+        if self.temp_sensor is not None:
             self.temp = self.printer.lookup_object(
                 "{}".format(self.temp_sensor)
             ).get_status(eventtime)["temperature"]
         else:
             # Temperatures defaults to 25C
             self.temp = 25
-        if self.humidity_sensor != None:
+        if self.humidity_sensor is not None:
             try:
                 self.humidity = self.printer.lookup_object(
                     "{}".format(self.humidity_sensor)
@@ -181,7 +182,7 @@ class SGP40:
         crc = 0xFF
         for i in range(2):
             crc ^= data[i]
-            for bit in range(8):
+            for _ in range(8):
                 if crc & 0x80:
                     crc = (crc << 1) ^ 0x31
                 else:
