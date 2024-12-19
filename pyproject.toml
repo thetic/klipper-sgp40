@@ -1,12 +1,8 @@
 [project]
 name = "klipper-sgp40"
-dynamic = ["dependencies", "version"]
+dynamic = ["version"]
 requires-python = ">=3.6"
-authors = [
-  { name = "Stefan Dej", email = "meteyou@gmail.com" },
-  { name = "Adrien Le Masle" },
-  { name = "Chad Condon" },
-]
+authors = [{ name = "Adrien Le Masle" }, { name = "Chad Condon" }]
 description = "Native Klipper support for SGP40 sensor"
 readme = "README.md"
 
@@ -21,8 +17,5 @@ build-backend = "setuptools.build_meta"
 select = ["E4", "E7", "E9", "F", "B", "I"]
 ignore = ["E501"]
 unfixable = ["B"]
-
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools_scm]
