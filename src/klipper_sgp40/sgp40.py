@@ -33,14 +33,12 @@ class SGP40:
         )
         self.temp_sensor = config.get("ref_temp_sensor", None)
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
-        self.voc_scale = config.getfloat("voc_scale", 1.0)
         self.mcu = self.i2c.get_mcu()
         self.raw = 0
         self.voc = 0
         self.temp = 0
         self.humidity = 0
         self.min_temp = self.max_temp = 0
-        self.plot_voc = config.getboolean("plot_voc", False)
         self.max_sample_time = 1
         self.sample_timer = None
         self.printer.add_object("sgp40 " + self.name, self)
@@ -132,9 +130,7 @@ class SGP40:
         self.voc = self._voc_algorithm.vocalgorithm_process(self.raw)
 
         measured_time = self.reactor.monotonic()
-        self._callback(
-            self.mcu.estimated_print_time(measured_time), self.voc * self.voc_scale
-        )
+        self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
         return measured_time + SGP40_REPORT_TIME
 
     def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
@@ -190,16 +186,12 @@ class SGP40:
         return crc & 0xFF
 
     def get_status(self, eventtime):
-        # HACKL can only plot on mainsail/fluidd if VOC index is a temperature
-        if self.plot_voc:
-            return {"temperature": self.voc * self.voc_scale}
-        else:
-            return {
-                "temperature": self.temp,
-                "humidity": self.humidity,
-                "gas": self.raw,
-                "voc": self.voc * self.voc_scale,
-            }
+        return {
+            "temperature": self.temp,
+            "humidity": self.humidity,
+            "gas": self.raw,
+            "voc": self.voc,
+        }
 
 
 def load_config(config):
