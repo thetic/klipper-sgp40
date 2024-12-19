@@ -1,7 +1,7 @@
 [project]
 name = "klipper-sgp40"
 dynamic = ["version"]
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 authors = [{ name = "Adrien Le Masle" }, { name = "Chad Condon" }]
 description = "Native Klipper support for SGP40 sensor"
 readme = "README.md"

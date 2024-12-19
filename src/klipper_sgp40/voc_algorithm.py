@@ -11,6 +11,7 @@ Class and algorithm to convert Sensirion sgp40 raw reading to indexed voc readin
 * Author(s): yangfeng
 
 """
+
 _VOCALGORITHM_SAMPLING_INTERVAL = 1
 _VOCALGORITHM_INITIAL_BLACKOUT = 45
 _VOCALGORITHM_VOC_INDEX_GAIN = 230
@@ -118,7 +119,7 @@ class VOCAlgorithm:
         BD = B * D
         product_hi = AC + (AD_CB >> 16)
         ad_cb_temp = ((AD_CB) << 16) & 0xFFFFFFFF
-        product_lo = ((BD + ad_cb_temp)) & 0xFFFFFFFF
+        product_lo = (BD + ad_cb_temp) & 0xFFFFFFFF
         if product_lo < BD:
             product_hi = product_hi + 1
         if (product_hi >> 31) != (product_hi >> 15):
