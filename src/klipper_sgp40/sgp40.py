@@ -43,7 +43,6 @@ class SGP40:
         self.sample_timer = None
         self.printer.add_object("sgp40 " + self.name, self)
         self._voc_algorithm = VOCAlgorithm()
-        self._voc_algorithm.vocalgorithm_init()
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
