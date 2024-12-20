@@ -248,9 +248,6 @@ class VOCAlgorithm:
         self.params.muptime = self._f16(0.0)
         self.params.msraw = self._f16(0.0)
         self.params.mvoc_index = 0
-        self._vocalgorithm__init_instances()
-
-    def _vocalgorithm__init_instances(self):
         self._vocalgorithm__mean_variance_estimator__init()
         self._vocalgorithm__mean_variance_estimator__set_parameters(
             self._f16(_VOCALGORITHM_SRAW_STD_INITIAL),
@@ -268,35 +265,6 @@ class VOCAlgorithm:
         )
         self._vocalgorithm__adaptive_lowpass__init()
         self._vocalgorithm__adaptive_lowpass__set_parameters()
-
-    def _vocalgorithm_get_states(self, state0, state1):
-        state0 = self._vocalgorithm__mean_variance_estimator__get_mean()
-        state1 = self._vocalgorithm__mean_variance_estimator__get_std()
-        return state0, state1
-
-    def _vocalgorithm_set_states(self, state0, state1):
-        self._vocalgorithm__mean_variance_estimator__set_states(
-            self.params,
-            state0,
-            state1,
-            self._f16(_VOCALGORITHM_PERSISTENCE_UPTIME_GAMMA),
-        )
-        self.params.msraw = state0
-
-    def _vocalgorithm_set_tuning_parameters(
-        self,
-        voc_index_offset,
-        learning_time_hours,
-        gating_max_duration_minutes,
-        std_initial,
-    ):
-        self.params.mvoc_index_offset = self._fix16_from_int(voc_index_offset)
-        self.params.mtau_mean_variance_hours = self._fix16_from_int(learning_time_hours)
-        self.params.mgating_max_duration_minutes = self._fix16_from_int(
-            gating_max_duration_minutes
-        )
-        self.params.msraw_std_initial = self._fix16_from_int(std_initial)
-        self._vocalgorithm__init_instances()
 
     def vocalgorithm_process(self, sraw):
         if self.params.muptime <= self._f16(_VOCALGORITHM_INITIAL_BLACKOUT):
@@ -386,14 +354,6 @@ class VOCAlgorithm:
         self.params.m_mean_variance_estimator_uptime_gamma = self._f16(0.0)
         self.params.m_mean_variance_estimator_uptime_gating = self._f16(0.0)
         self.params.m_mean_variance_estimator_gating_duration_minutes = self._f16(0.0)
-
-    def _vocalgorithm__mean_variance_estimator__set_states(
-        self, mean, std, uptime_gamma
-    ):
-        self.params.m_mean_variance_estimator_mean = mean
-        self.params.m_mean_variance_estimator_std = std
-        self.params.m_mean_variance_estimator_uptime_gamma = uptime_gamma
-        self.params.m_mean_variance_estimator_initialized = True
 
     def _vocalgorithm__mean_variance_estimator__get_std(self):
         return self.params.m_mean_variance_estimator_std
