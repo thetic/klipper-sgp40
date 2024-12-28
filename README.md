@@ -20,12 +20,20 @@ you can configure the installation script with parameters:
 ./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-v <klippy venv path>] [-u] 1>&2
 ```
 
+> [!WARNING]
+> This module is a work in progress.
+> Files are likely to change names and paths as changes are made.
+> It is recommended to uninstall with `./install.sh -u` before updating,
+> then to reinstall afterwards.
+
 Then, add the following to your `moonraker.conf` to enable automatic updates:
 
 ```ini
 [update_manager klipper-sgp40]
 type: git_repo
 path: ~/klipper-sgp40
+virtualenv: ~/klippy-env
+requirements: requirements.txt
 origin: https://github.com/thetic/klipper-sgp40.git
 primary_branch: main
 managed_services: klipper
@@ -101,4 +109,5 @@ ref_humidity_sensor: bme280 BME_IN
 
 ## Attribution
 
-- This project was adapted from the [Nevermore Max](https://github.com/nevermore3d/Nevermore_Max) project.
+- This project was adapted from the [Pull Request against Klipper](https://github.com/Klipper3d/klipper/pull/6738) by Stefan Dej
+  which was itself adapted from the [Nevermore Max](https://github.com/nevermore3d/Nevermore_Max) project.
