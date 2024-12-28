@@ -10,18 +10,14 @@ from struct import unpack_from
 
 from sensirion_gas_index_algorithm.voc_algorithm import VocAlgorithm
 
-from . import bus # type:ignore
+from . import bus  # type:ignore
 
 SGP40_REPORT_TIME = 1
 SGP40_CHIP_ADDR = 0x59
 SGP40_WORD_LEN = 2
 
-SGP40_CMD = {
-    "GET_SERIAL": [0x36, 0x82],
-    "SOFT_RESET": [0x00, 0x06],
-    "SELF_TEST": [0x28, 0x0E],
-    "MEASURE_RAW_NO_COMP": [0x26, 0x0F, 0x80, 0x00, 0xA2, 0x66, 0x66, 0x93],
-}
+SELF_TEST_CMD = [0x28, 0x0E]
+MEASURE_RAW_CMD_PREFIX = [0x26, 0x0F]
 
 
 class SGP40:
@@ -88,14 +84,14 @@ class SGP40:
 
     def _init_sgp40(self):
         # Self test
-        self_test = self._read_and_check(SGP40_CMD["SELF_TEST"], wait_time_s=0.5)
+        self_test = self._read_and_check(SELF_TEST_CMD, wait_time_s=0.5)
         if self_test[0] != 0xD400:
             logging.error("sgp40: Self test error")
 
         self.sample_timer = self.reactor.register_timer(self._sample_sgp40)
 
     def _sample_sgp40(self, eventtime):
-        if self.temp_sensor is not None:
+        if self.temp_sensor:
             self.temp = self.printer.lookup_object(
                 "{}".format(self.temp_sensor)
             ).get_status(eventtime)["temperature"]
@@ -103,29 +99,19 @@ class SGP40:
             # Temperatures defaults to 25C
             self.temp = 25
 
-        if self.humidity_sensor is not None:
-            try:
-                self.humidity = self.printer.lookup_object(
-                    "{}".format(self.humidity_sensor)
-                ).get_status(eventtime)["humidity"]
-            except KeyError:
-                self.humidity = 50
+        humidity = None
+        if self.humidity_sensor:
+            humidity = (
+                self.printer.lookup_object("{}".format(self.humidity_sensor))
+                .get_status(eventtime)
+                .get("humidity")
+            )
+        if humidity is None:
+            self.humidity = self._calculate_humidity(self.temp)
         else:
-            # Interpolate relative humidity assuming a CLOSED chamber and INITIAL 50% HUMIDITY at 25C;
-            #   humidity = P(water_vapour) / P(saturation_vapour_pressure)
-            #
-            #   Relationship between temp and saturation vapor pressure:
-            #     https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-d_599.html
-            #
-            #   Approximate change in Saturation Vapor pressure at temperature T [25<T<80]
-            #     P(Saturation_vapor_pressure_T) / P(Saturation_vapor_pressure_25C) = exp(0.0499860*T - 1.1674630)
-            self.humidity = 50.0 / math.exp(0.0499860 * self.temp - 1.1674630)
+            self.humidity = humidity
 
-        cmd = (
-            [0x26, 0x0F]
-            + self._humidity_to_ticks(self.humidity)
-            + self._temperature_to_ticks(self.temp)
-        )
+        cmd = self._measure_cmd(self.humidity, self.temp)
         value = self._read_and_check(cmd)
         self.raw = value[0]
 
@@ -155,24 +141,46 @@ class SGP40:
 
         return data
 
-    def _check_crc8(self, data, crc):
-        return crc == self._generate_crc(data)
+    @classmethod
+    def _check_crc8(cls, data, crc):
+        return crc == cls._generate_crc(data)
 
-    def _temperature_to_ticks(self, temperature):
+    @staticmethod
+    def _calculate_humidity(temp):
+        # Magnus formula for estimating the saturation vapor pressure curve
+        a = 17.62
+        b = 243.12
+        saturation_vapor_pressure = 6.112 * math.exp((a * temp) / (b + temp))
+        actual_vapor_pressure = 6.112 * math.exp((a * 25) / (b + 25))
+        relative_humidity = (actual_vapor_pressure / saturation_vapor_pressure) * 50
+        return max(0, min(100, relative_humidity))
+
+    @classmethod
+    def _temperature_to_ticks(cls, temperature):
         ticks = int(round(((temperature + 45) * 65535) / 175)) & 0xFFFF
         data = [(ticks >> 8) & 0xFF, ticks & 0xFF]
-        crc = self._generate_crc(data)
+        crc = cls._generate_crc(data)
 
         return data + [crc]
 
-    def _humidity_to_ticks(self, humidity):
+    @classmethod
+    def _humidity_to_ticks(cls, humidity):
         ticks = int(round((humidity * 65535) / 100)) & 0xFFFF
         data = [(ticks >> 8) & 0xFF, ticks & 0xFF]
-        crc = self._generate_crc(data)
+        crc = cls._generate_crc(data)
 
         return data + [crc]
 
-    def _generate_crc(self, data):
+    @classmethod
+    def _measure_cmd(cls, humidity, temp):
+        return (
+            MEASURE_RAW_CMD_PREFIX
+            + cls._humidity_to_ticks(humidity)
+            + cls._temperature_to_ticks(temp)
+        )
+
+    @staticmethod
+    def _generate_crc(data):
         # From SGP40 data sheet
         crc = 0xFF
         for i in range(2):
