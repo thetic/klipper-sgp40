@@ -10,7 +10,7 @@ from struct import unpack_from
 
 from sensirion_gas_index_algorithm.voc_algorithm import VocAlgorithm
 
-from .. import bus
+from . import bus
 
 SGP40_REPORT_TIME = 1
 SGP40_CHIP_ADDR = 0x59

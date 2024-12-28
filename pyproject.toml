@@ -1,7 +1,7 @@
 [project]
-name = "sgp40"
+name = "klipper-sgp40"
 dynamic = ["dependencies", "version"]
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 authors = [
     { name = "Stefan Dej", email = "meteyou@gmail.com" },
     { name = "Adrien Le Masle" },

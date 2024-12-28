@@ -26,7 +26,9 @@ while getopts "k:s:v:uh" arg; do
     esac
 done
 
+# Find SRCDIR from the pathname of this script
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SRCDIR=${ROOT_DIR}/src/klipper_sgp40
 
 # Verify Klipper has been installed
 check_klipper() {
@@ -64,7 +66,7 @@ function setup_venv {
 # Link extension to Klipper
 link_extension() {
     echo -n "Linking extension to Klipper... "
-    ln -sf "${ROOT_DIR}/src/sgp40" "${KLIPPER_PATH}/klippy/extras/sgp40"
+    ln -sf "${SRCDIR}/sgp40.py" "${KLIPPER_PATH}/klippy/extras/sgp40.py"
     echo "[OK]"
 }
 
@@ -82,7 +84,7 @@ stop_klipper() {
 
 uninstall() {
     echo -n "Uninstalling... "
-    rm -f "${KLIPPER_PATH}/klippy/extras/sgp40"
+    rm -f "${KLIPPER_PATH}/klippy/extras/sgp40.py"
     echo "[OK]"
     echo "You can now remove the [update_manager klipper-sgp40] section in your moonraker.conf and delete this directory. Also remove all sgp40 configurations from your Klipper configuration."
 }
