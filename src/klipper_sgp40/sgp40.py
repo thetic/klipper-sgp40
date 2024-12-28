@@ -71,21 +71,45 @@ class SGP40:
         self.i2c = bus.MCU_I2C_from_config(
             config, default_addr=SGP40_CHIP_ADDR, default_speed=100000
         )
+        self.mcu = self.i2c.get_mcu()
         self.temp_sensor = config.get("ref_temp_sensor", None)
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
-        self.mcu = self.i2c.get_mcu()
-        self.raw = 0
-        self.voc = 0
-        self.temp = 0
-        self.humidity = 0
+
+        self.raw = self.voc = self.temp = self.humidity = 0
         self.min_temp = self.max_temp = 0
         self.max_sample_time = 1
         self.sample_timer = None
+
         self.printer.add_object("sgp40 " + self.name, self)
         self._voc_algorithm = VocAlgorithm()
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
         self.printer.register_event_handler("klippy:connect", self._handle_connect)
+        self._register_commands()
+
+    def _register_commands(self):
+        gcode = self.printer.lookup_object("gcode")
+        gcode.register_mux_command(
+            "QUERY_SGP40",
+            "SENSOR",
+            self.name,
+            self.cmd_QUERY_SGP40,
+            desc=self.cmd_QUERY_SGP40_help,
+        )
+
+    cmd_QUERY_SGP40_help = "Query sensor for the current values"
+
+    def cmd_QUERY_SGP40(self, gcmd):
+        response = "VOC Index: %d\nGas Raw: %.2f" % (self.voc, self.raw)
+
+        response += "\nTemperature: %.2f C" % (self.temp)
+        if not self.temp_sensor:
+            response += " (estimated)"
+
+        response += "\nHumidity: %.2f %%" % (self.humidity)
+        if not self.humidity_sensor:
+            response += " (estimated)"
+        gcmd.respond_info(response)
 
     def _check_ref_sensor(self, name, value=None):
         sensor = self.printer.lookup_object(name)
