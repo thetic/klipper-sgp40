@@ -82,9 +82,10 @@ class DFRobot_vocalgorithmParams:
         self.m_adaptive_lowpass_x3 = 0
 
 
-class VOCAlgorithm:
+class VocAlgorithm:
     def __init__(self):
         self.params = DFRobot_vocalgorithmParams()
+        self.vocalgorithm_init()
 
     def _f16(self, x):
         if x >= 0:
@@ -295,7 +296,7 @@ class VOCAlgorithm:
         self.params.msraw_std_initial = self._fix16_from_int(std_initial)
         self._vocalgorithm__init_instances()
 
-    def vocalgorithm_process(self, sraw):
+    def process(self, sraw):
         if self.params.muptime <= self._f16(_VOCALGORITHM_INITIAL_BLACKOUT):
             self.params.muptime = self.params.muptime + self._f16(
                 _VOCALGORITHM_SAMPLING_INTERVAL
