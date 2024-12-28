@@ -85,9 +85,26 @@ class SGP40:
         self._voc_algorithm = VocAlgorithm()
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
-        self.printer.register_event_handler("klippy:connect", self.handle_connect)
+        self.printer.register_event_handler("klippy:connect", self._handle_connect)
 
-    def handle_connect(self):
+    def _check_ref_sensor(self, name, value=None):
+        sensor = self.printer.lookup_object(name)
+        # check if sensor has get_status function and
+        # get_status has the requested value
+        if not hasattr(sensor, "get_status"):
+            raise self.printer.config_error("'%s' does not report %s." % (name, value))
+
+        reported = sensor.get_status(self.reactor.monotonic()).keys()
+        if value and value not in reported:
+            raise self.printer.config_error("'%s' does not report %s." % (name, value))
+
+    def _handle_connect(self):
+        if self.temp_sensor:
+            self._check_ref_sensor(self.temp_sensor, "temperature")
+        if self.humidity_sensor:
+            # BME280 does not start reporting humidity until after connection.
+            self._check_ref_sensor(self.humidity_sensor)
+
         self._init_sgp40()
 
         # Dirty way of using more retries
