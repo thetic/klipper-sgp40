@@ -66,7 +66,7 @@ function setup_venv {
 # Link extension to Klipper
 link_extension() {
     echo -n "Linking extension to Klipper... "
-    ln -sf "${SRCDIR}/sgp40.py" "${KLIPPER_PATH}/klippy/extras/sgp40.py"
+    ln -sf "${SRCDIR}" "${KLIPPER_PATH}/klippy/extras/sgp40"
     echo "[OK]"
 }
 
@@ -84,7 +84,7 @@ stop_klipper() {
 
 uninstall() {
     echo -n "Uninstalling... "
-    rm -f "${KLIPPER_PATH}/klippy/extras/sgp40.py"
+    rm -f "${KLIPPER_PATH}/klippy/extras/sgp40"
     echo "[OK]"
     echo "You can now remove the [update_manager klipper-sgp40] section in your moonraker.conf and delete this directory. Also remove all sgp40 configurations from your Klipper configuration."
 }
