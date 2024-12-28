@@ -10,7 +10,7 @@ from struct import unpack_from
 
 from sensirion_gas_index_algorithm.voc_algorithm import VocAlgorithm
 
-from . import bus
+from . import bus # type:ignore
 
 SGP40_REPORT_TIME = 1
 SGP40_CHIP_ADDR = 0x59
@@ -102,6 +102,7 @@ class SGP40:
         else:
             # Temperatures defaults to 25C
             self.temp = 25
+
         if self.humidity_sensor is not None:
             try:
                 self.humidity = self.printer.lookup_object(
@@ -119,6 +120,7 @@ class SGP40:
             #   Approximate change in Saturation Vapor pressure at temperature T [25<T<80]
             #     P(Saturation_vapor_pressure_T) / P(Saturation_vapor_pressure_25C) = exp(0.0499860*T - 1.1674630)
             self.humidity = 50.0 / math.exp(0.0499860 * self.temp - 1.1674630)
+
         cmd = (
             [0x26, 0x0F]
             + self._humidity_to_ticks(self.humidity)
@@ -138,9 +140,6 @@ class SGP40:
 
         self.i2c.i2c_write(cmd)
 
-        if reply_len == 0:
-            return None
-
         # Wait
         self.reactor.pause(self.reactor.monotonic() + wait_time_s)
 
@@ -151,7 +150,7 @@ class SGP40:
 
         for i in range(0, reply_len, 3):
             if not self._check_crc8(response[i : i + 2], response[i + 2]):
-                logging.warn("sgp40: Checksum error on read!")
+                logging.warning("sgp40: Checksum error on read!")
             data.append(unpack_from(">H", response[i : i + 2])[0])
 
         return data
