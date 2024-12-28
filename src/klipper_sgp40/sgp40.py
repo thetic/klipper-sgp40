@@ -189,8 +189,8 @@ class SGP40:
         return {
             "temperature": self.temp,
             "humidity": self.humidity,
-            "gas": self.raw,
-            "voc": self.voc,
+            "gas_raw": self.raw,
+            "gas": self.voc,
         }
 
 
