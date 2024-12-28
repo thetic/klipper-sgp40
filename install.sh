@@ -60,7 +60,7 @@ check_folders() {
 link_extension() {
     echo -n "Linking extension to Klipper... "
     ln -sf "${SRCDIR}/sgp40.py" "${KLIPPER_PATH}/klippy/extras/sgp40.py"
-    ln -sf "${SRCDIR}/voc_algorithm.py" "${KLIPPER_PATH}/klippy/extras/voc_alog.py"
+    ln -sf "${SRCDIR}/voc_algorithm.py" "${KLIPPER_PATH}/klippy/extras/voc_algorithm.py"
     echo "[OK]"
 }
 
