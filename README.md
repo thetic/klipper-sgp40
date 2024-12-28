@@ -20,6 +20,12 @@ you can configure the installation script with parameters:
 ./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-v <klippy venv path>] [-u] 1>&2
 ```
 
+> [!WARNING]
+> This module is a work in progress.
+> Files are likely to change names and paths as changes are made.
+> It is recommended to uninstall with `./install.sh -u` before updating,
+> then to reinstall afterwards.
+
 Then, add the following to your `moonraker.conf` to enable automatic updates:
 
 ```ini
