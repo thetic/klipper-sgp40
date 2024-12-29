@@ -207,7 +207,7 @@ class SGP40:
         return data
 
     def _log_message(self, message):
-        return f"SGP40 {self.name}: {message}"
+        return "SGP40 %s: %s" % (self.name, message)
 
     def get_status(self, eventtime):
         return {
