@@ -66,7 +66,7 @@ function setup_venv {
 # Link extension to Klipper
 link_extension() {
     echo -n "Linking extension to Klipper... "
-    ln -sf "${SRCDIR}" "${KLIPPER_PATH}/klippy/extras/sgp40"
+    ln -sfT "${SRCDIR}" "${KLIPPER_PATH}/klippy/extras/sgp40"
     echo "[OK]"
 }
 
