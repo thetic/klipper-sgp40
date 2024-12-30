@@ -8,8 +8,6 @@ import logging
 import math
 from struct import unpack_from
 
-from sensirion_gas_index_algorithm.voc_algorithm import VocAlgorithm
-
 from .. import bus  # type:ignore
 
 SGP40_REPORT_TIME = 1
@@ -74,14 +72,14 @@ class SGP40:
         self.mcu = self.i2c.get_mcu()
         self.temp_sensor = config.get("ref_temp_sensor", None)
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
+        self.baseline = config.getint("baseline", 1000, minval=1)
 
-        self.raw = self.voc = self.temp = self.humidity = 0
+        self.raw = 0
         self.min_temp = self.max_temp = 0
         self.max_sample_time = 1
         self.sample_timer = None
 
         self.printer.add_object("sgp40 " + self.name, self)
-        self._voc_algorithm = VocAlgorithm()
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
         self.printer.register_event_handler("klippy:connect", self._handle_connect)
@@ -100,16 +98,7 @@ class SGP40:
     cmd_QUERY_SGP40_help = "Query sensor for the current values"
 
     def cmd_QUERY_SGP40(self, gcmd):
-        response = "VOC Index: %d\nGas Raw: %d" % (self.voc, self.raw)
-
-        response += "\nTemperature: %.2f C" % (self.temp)
-        if not self.temp_sensor:
-            response += " (estimated)"
-
-        response += "\nHumidity: %.2f %%" % (self.humidity)
-        if not self.humidity_sensor:
-            response += " (estimated)"
-        gcmd.respond_info(response)
+        gcmd.respond_info("Gas: %.2f %%\nRaw: %d" % (self.gas, self.raw))
 
     def _check_ref_sensor(self, name, value=None):
         sensor = self.printer.lookup_object(name)
@@ -175,13 +164,12 @@ class SGP40:
         self.sample_timer = self.reactor.register_timer(self._sample_sgp40)
 
     def _sample_sgp40(self, eventtime):
+        # Temperature defaults to 25C
+        temperature = 25
         if self.temp_sensor:
-            self.temp = self.printer.lookup_object(
+            temperature = self.printer.lookup_object(
                 "{}".format(self.temp_sensor)
             ).get_status(eventtime)["temperature"]
-        else:
-            # Temperatures defaults to 25C
-            self.temp = 25
 
         humidity = None
         if self.humidity_sensor:
@@ -191,22 +179,19 @@ class SGP40:
                 .get("humidity")
             )
         if humidity is None:
-            self.humidity = _estimate_humidity(self.temp)
-        else:
-            self.humidity = humidity
+            humidity = _estimate_humidity(temperature)
 
         cmd = (
             MEASURE_RAW_CMD_PREFIX
-            + _humidity_to_ticks(self.humidity)
-            + _temperature_to_ticks(self.temp)
+            + _humidity_to_ticks(humidity)
+            + _temperature_to_ticks(temperature)
         )
         response = self._read_and_check(cmd)
         self.raw = response[0]
-
-        self.voc = self._voc_algorithm.process(self.raw)
+        self.gas = self.raw / self.baseline * 100
 
         measured_time = self.reactor.monotonic()
-        self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
+        self._callback(self.mcu.estimated_print_time(measured_time), self.gas)
         return measured_time + SGP40_REPORT_TIME
 
     def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
@@ -234,10 +219,8 @@ class SGP40:
 
     def get_status(self, eventtime):
         return {
-            "temperature": self.temp,
-            "humidity": self.humidity,
             "gas_raw": self.raw,
-            "gas": self.voc,
+            "gas": self.gas,
         }
 
 

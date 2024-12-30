@@ -17,7 +17,7 @@ If your directory structure differs from the usual setup,
 you can configure the installation script with parameters:
 
 ```
-./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-v <klippy venv path>] [-u] 1>&2
+./install.sh [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-u] 1>&2
 ```
 
 > [!WARNING]
@@ -32,8 +32,6 @@ Then, add the following to your `moonraker.conf` to enable automatic updates:
 [update_manager klipper-sgp40]
 type: git_repo
 path: ~/klipper-sgp40
-virtualenv: ~/klippy-env
-requirements: requirements.txt
 origin: https://github.com/thetic/klipper-sgp40.git
 primary_branch: main
 managed_services: klipper
@@ -65,6 +63,10 @@ sensor_type: SGP40
 #   The name of the temperature sensor to use as reference for humidity
 #   compensation of the VOC raw measurement. If not defined calculations
 #   will assume 50% humidity.
+#baseline: 1000
+#   Baseline reading of the sensor.  This should be the "Raw" reading
+#   reported by the `QUERY_SGP40` command. gas readings are reported as
+#   a percentage of this value. The default "baseline" is 1000.
 ```
 
 ### Example

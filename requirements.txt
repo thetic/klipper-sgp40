@@ -1,1 +1,0 @@
-sensirion-gas-index-algorithm==3.2.1
