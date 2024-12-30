@@ -100,7 +100,7 @@ class SGP40:
     cmd_QUERY_SGP40_help = "Query sensor for the current values"
 
     def cmd_QUERY_SGP40(self, gcmd):
-        response = "VOC Index: %d\nGas Raw: %.2f" % (self.voc, self.raw)
+        response = "VOC Index: %d\nGas Raw: %d" % (self.voc, self.raw)
 
         response += "\nTemperature: %.2f C" % (self.temp)
         if not self.temp_sensor:
