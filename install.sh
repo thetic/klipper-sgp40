@@ -5,10 +5,9 @@ set -e
 
 KLIPPER_PATH="${HOME}/klipper"
 KLIPPER_SERVICE_NAME=klipper
-KLIPPER_VENV_PATH="${HOME}/klippy-env"
 
 usage() {
-    echo "Usage: $0 [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-v <klippy venv path>] [-u]" 1>&2
+    echo "Usage: $0 [-k <klipper path>] [-s <klipper service name>] [-c <configuration path>] [-u]" 1>&2
 }
 
 # Parse command line arguments
@@ -47,20 +46,6 @@ check_folders() {
         echo "[ERROR] Klipper installation not found in directory $KLIPPER_PATH. Exiting"
         exit 1
     fi
-
-    if [ -f "$KLIPPER_VENV_PATH/bin/python" ]; then
-        echo "Klipper virtual environment found at $KLIPPER_VENV_PATH"
-    else
-        echo "[ERROR] Klipper virtual environment not found in directory $KLIPPER_VENV_PATH. Exiting"
-        exit 1
-    fi
-}
-
-function setup_venv {
-    echo -n "Installing dependencies... "
-    "${KLIPPER_VENV_PATH}/bin/python" -m pip install --upgrade pip
-    "${KLIPPER_VENV_PATH}/bin/python" -m pip install -r "${ROOT_DIR}/requirements.txt"
-    echo "[OK]"
 }
 
 # Link extension to Klipper
@@ -105,7 +90,6 @@ stop_klipper
 if [ -n "$UNINSTALL" ]; then
     uninstall
 else
-    setup_venv
     link_extension
 fi
 start_klipper
