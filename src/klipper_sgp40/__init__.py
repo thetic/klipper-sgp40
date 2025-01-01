@@ -131,29 +131,6 @@ class SGP40:
 
         self._init_sgp40()
 
-        # Dirty way of using more retries
-        # This is harcoded in serialhdl.py in Klipper
-        def get_response(self, cmds, cmd_queue, minclock=0, reqclock=0):
-            retries = 15
-            retry_delay = 0.010
-            while 1:
-                for cmd in cmds[:-1]:
-                    self.serial.raw_send(cmd, minclock, reqclock, cmd_queue)
-                self.serial.raw_send_wait_ack(cmds[-1], minclock, reqclock, cmd_queue)
-                params = self.last_params
-                if params is not None:
-                    self.serial.register_response(None, self.name, self.oid)
-                    return params
-                if retries <= 0:
-                    self.serial.register_response(None, self.name, self.oid)
-                    raise Exception("Unable to obtain '%s' response" % (self.name,))
-                reactor = self.serial.reactor
-                reactor.pause(reactor.monotonic() + retry_delay)
-                retries -= 1
-                retry_delay *= 2.0
-
-        self.i2c.i2c_read_cmd._xmit_helper.get_response = get_response
-
         self.reactor.update_timer(self.sample_timer, self.reactor.NOW)
 
     def setup_minmax(self, min_temp, max_temp):
@@ -230,7 +207,7 @@ class SGP40:
         return data
 
     def _log_message(self, message):
-        return f"SGP40 {self.name}: {message}"
+        return "SGP40 %s: %s" % (self.name, message)
 
     def get_status(self, eventtime):
         return {
