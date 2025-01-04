@@ -39,10 +39,10 @@ class Params:
     """Class for voc index algorithm"""
 
     def __init__(self):
-        self.voc_index_offset = 0.0
-        self.tau_mean_variance_hours = 0.0
-        self.gating_max_duration_minutes = 0.0
-        self.sraw_std_initial = 0.0
+        self.voc_index_offset = _VOC_INDEX_OFFSET_DEFAULT
+        self.tau_mean_variance_hours = _TAU_MEAN_VARIANCE_HOURS
+        self.gating_max_duration_minutes = _GATING_MAX_DURATION_MINUTES
+        self.sraw_std_initial = _SRAW_STD_INITIAL
         self.uptime = 0.0
         self.sraw = 0.0
         self.voc_index = 0.0
@@ -76,14 +76,6 @@ class Params:
 class VocAlgorithm:
     def __init__(self):
         self._params = Params()
-        self._params.voc_index_offset = _VOC_INDEX_OFFSET_DEFAULT
-        self._params.tau_mean_variance_hours = _TAU_MEAN_VARIANCE_HOURS
-
-        self._params.gating_max_duration_minutes = _GATING_MAX_DURATION_MINUTES
-        self._params.sraw_std_initial = _SRAW_STD_INITIAL
-        self._params.uptime = 0.0
-        self._params.sraw = 0.0
-        self._params.voc_index = 0.0
         self._init_instances()
 
     def _init_instances(self):
