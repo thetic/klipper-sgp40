@@ -108,6 +108,9 @@ class SGP40:
         response += "\nHumidity: %.2f %%" % (self.humidity)
         if not self.humidity_sensor:
             response += " (estimated)"
+
+        response += "\nAlgorithm State: %s" % (str(self._voc_algorithm.get_states()))
+
         gcmd.respond_info(response)
 
     def _check_ref_sensor(self, name, value=None):
