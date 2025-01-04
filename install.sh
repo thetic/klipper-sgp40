@@ -56,13 +56,6 @@ check_folders() {
     fi
 }
 
-function setup_venv {
-    echo -n "Installing dependencies... "
-    "${KLIPPER_VENV_PATH}/bin/python" -m pip install --upgrade pip
-    "${KLIPPER_VENV_PATH}/bin/python" -m pip install -r "${ROOT_DIR}/requirements.txt"
-    echo "[OK]"
-}
-
 # Link extension to Klipper
 link_extension() {
     echo -n "Linking extension to Klipper... "
@@ -105,7 +98,6 @@ stop_klipper
 if [ -n "$UNINSTALL" ]; then
     uninstall
 else
-    setup_venv
     link_extension
 fi
 start_klipper
