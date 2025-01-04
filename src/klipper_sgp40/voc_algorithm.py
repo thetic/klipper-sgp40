@@ -8,6 +8,7 @@ from math import exp, sqrt
 _VOCALGORITHM_SAMPLING_INTERVAL = 1.0
 _VOCALGORITHM_INITIAL_BLACKOUT = 45.0
 _VOCALGORITHM_VOC_INDEX_GAIN = 230.0
+_VOCALGORITHM_SRAW_MINIMUM = 20000
 _VOCALGORITHM_SRAW_STD_INITIAL = 50.0
 _VOCALGORITHM_SRAW_STD_BONUS = 220.0
 _VOCALGORITHM_TAU_MEAN_VARIANCE_HOURS = 12.0
@@ -140,11 +141,11 @@ class VocAlgorithm:
             self.params.muptime += _VOCALGORITHM_SAMPLING_INTERVAL
         else:
             if (sraw > 0) and (sraw < 65000):
-                if sraw < 20001:
-                    sraw = 20001
-                elif sraw > 52767:
-                    sraw = 52767
-                self.params.msraw = float(sraw - 20000)
+                if sraw < _VOCALGORITHM_SRAW_MINIMUM + 1:
+                    sraw = _VOCALGORITHM_SRAW_MINIMUM + 1
+                elif sraw > (_VOCALGORITHM_SRAW_MINIMUM + 32767):
+                    sraw = _VOCALGORITHM_SRAW_MINIMUM + 32767
+                self.params.msraw = float(sraw - _VOCALGORITHM_SRAW_MINIMUM)
             self.params.mvoc_index = self._vocalgorithm__mox_model__process(
                 self.params.msraw
             )
