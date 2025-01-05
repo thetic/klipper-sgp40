@@ -376,6 +376,10 @@ class VocAlgorithm:
         self._params.mean_variance_estimator_sigmoid_x0 = x0_param
 
     def _mean_variance_estimator_sigmoid_process(self, sample):
+        if not self.calibrating:
+            # Hack stolen from sanaa to disable all gating and freeze the MVE
+            return 0.0
+
         x = self._params.mean_variance_estimator_sigmoid_k * (
             sample - self._params.mean_variance_estimator_sigmoid_x0
         )
@@ -406,10 +410,6 @@ class VocAlgorithm:
         self._params.sigmoid_scaled_offset = offset
 
     def _sigmoid_scaled_process(self, sample):
-        if not self.calibrating:
-            # Hack stolen from sanaa to disable all gating and freeze the MVE
-            return 0.0
-
         x = _SIGMOID_K * (sample - _SIGMOID_X0)
         if x < -50.0:
             return _SIGMOID_L
