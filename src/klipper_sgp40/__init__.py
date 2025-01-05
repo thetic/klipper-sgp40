@@ -83,7 +83,20 @@ class SGP40:
         self._voc_algorithm = VocAlgorithm()
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
+
         self.printer.register_event_handler("klippy:connect", self._handle_connect)
+        # TODO handle whenever a heater is turned on
+        self.printer.register_event_handler(
+            "idle_timeout:printing", self._handle_printing
+        )
+        # TODO handle whenever all heaters ore turned off
+        self.printer.register_event_handler(
+            "idle_timeout:ready", self._handle_not_printing
+        )
+        self.printer.register_event_handler(
+            "idle_timeout:idle", self._handle_not_printing
+        )
+
         self._register_commands()
 
     def _register_commands(self):
@@ -110,6 +123,9 @@ class SGP40:
             response += " (estimated)"
 
         response += "\nAlgorithm State: %s" % (str(self._voc_algorithm.get_states()))
+        response += "\nCalibration: %s" % (
+            "Active" if self._voc_algorithm.calibrating else "Inactive"
+        )
 
         gcmd.respond_info(response)
 
@@ -134,6 +150,12 @@ class SGP40:
         self._init_sgp40()
 
         self.reactor.update_timer(self.sample_timer, self.reactor.NOW)
+
+    def _handle_printing(self, print_time):
+        self._voc_algorithm.calibrating = False
+
+    def _handle_not_printing(self, print_time):
+        self._voc_algorithm.calibrating = True
 
     def setup_minmax(self, min_temp, max_temp):
         self.min_temp = min_temp

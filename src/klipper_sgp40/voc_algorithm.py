@@ -76,6 +76,7 @@ class Params:
 class VocAlgorithm:
     def __init__(self):
         self._params = Params()
+        self.calibrating = True
         self._init_instances()
 
     def _init_instances(self):
@@ -405,6 +406,10 @@ class VocAlgorithm:
         self._params.sigmoid_scaled_offset = offset
 
     def _sigmoid_scaled_process(self, sample):
+        if not self.calibrating:
+            # Hack stolen from sanaa to disable all gating and freeze the MVE
+            return 0.0
+
         x = _SIGMOID_K * (sample - _SIGMOID_X0)
         if x < -50.0:
             return _SIGMOID_L
