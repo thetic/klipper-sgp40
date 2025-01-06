@@ -5,7 +5,6 @@
 
 from math import exp, sqrt
 
-_SAMPLING_INTERVAL_SEC = 1.0
 _INITIAL_BLACKOUT_SEC = 45.0
 _VOC_INDEX_GAIN = 230.0
 _SRAW_MINIMUM = 20000
@@ -74,6 +73,8 @@ class Params:
 
 
 class VocAlgorithm:
+    SAMPLE_PEROID_SEC = 1.0
+
     def __init__(self):
         self._params = Params()
         self.calibrating = True
@@ -124,7 +125,7 @@ class VocAlgorithm:
 
     def process(self, sraw):
         if self._params.uptime <= _INITIAL_BLACKOUT_SEC:
-            self._params.uptime += _SAMPLING_INTERVAL_SEC
+            self._params.uptime += self.SAMPLE_PEROID_SEC
         else:
             if (sraw > 0) and (sraw < 65000):
                 if sraw < _SRAW_MINIMUM + 1:
@@ -170,14 +171,14 @@ class VocAlgorithm:
         self._params.mean_variance_estimator_sraw_offset = 0.0
         self._params.mean_variance_estimator_std = std_initial
         self._params.mean_variance_estimator_gamma = (
-            _MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * (_SAMPLING_INTERVAL_SEC / 3600.0)
-        ) / (tau_mean_variance_hours + (_SAMPLING_INTERVAL_SEC / 3600.0))
+            _MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * (self.SAMPLE_PEROID_SEC / 3600.0)
+        ) / (tau_mean_variance_hours + (self.SAMPLE_PEROID_SEC / 3600.0))
         self._params.mean_variance_estimator_gamma_initial_mean = (
-            _MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * _SAMPLING_INTERVAL_SEC
-        ) / (_TAU_INITIAL_MEAN + _SAMPLING_INTERVAL_SEC)
+            _MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * self.SAMPLE_PEROID_SEC
+        ) / (_TAU_INITIAL_MEAN + self.SAMPLE_PEROID_SEC)
         self._params.mean_variance_estimator_gamma_initial_variance = (
-            _MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * _SAMPLING_INTERVAL_SEC
-        ) / (_TAU_INITIAL_VARIANCE + _SAMPLING_INTERVAL_SEC)
+            _MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * self.SAMPLE_PEROID_SEC
+        ) / (_TAU_INITIAL_VARIANCE + self.SAMPLE_PEROID_SEC)
         self._params.mean_variance_estimator_gamma_mean = 0.0
         self._params.mean_variance_estimator__gamma_variance = 0.0
         self._params.mean_variance_estimator_uptime_gamma = 0.0
@@ -200,17 +201,17 @@ class VocAlgorithm:
         )
 
     def _mean_variance_estimator_calculate_gamma(self, voc_index_from_prior):
-        uptime_limit = _MEAN_VARIANCE_ESTIMATOR__FIX16_MAX - _SAMPLING_INTERVAL_SEC
+        uptime_limit = _MEAN_VARIANCE_ESTIMATOR__FIX16_MAX - self.SAMPLE_PEROID_SEC
         if self._params.mean_variance_estimator_uptime_gamma < uptime_limit:
             self._params.mean_variance_estimator_uptime_gamma = (
                 self._params.mean_variance_estimator_uptime_gamma
-                + _SAMPLING_INTERVAL_SEC
+                + self.SAMPLE_PEROID_SEC
             )
 
         if self._params.mean_variance_estimator_uptime_gating < uptime_limit:
             self._params.mean_variance_estimator_uptime_gating = (
                 self._params.mean_variance_estimator_uptime_gating
-                + _SAMPLING_INTERVAL_SEC
+                + self.SAMPLE_PEROID_SEC
             )
 
         self._mean_variance_estimator_sigmoid_set_parameters(
@@ -289,7 +290,7 @@ class VocAlgorithm:
         self._params.mean_variance_estimator_gating_duration_minutes = (
             self._params.mean_variance_estimator_gating_duration_minutes
             + (
-                (_SAMPLING_INTERVAL_SEC / 60.0)
+                (self.SAMPLE_PEROID_SEC / 60.0)
                 * (
                     ((1.0 - sigmoid_gating_mean) * (1.0 + _GATING_MAX_RATIO))
                     - _GATING_MAX_RATIO
@@ -428,11 +429,11 @@ class VocAlgorithm:
         self._adaptive_lowpass_set_parameters()
 
     def _adaptive_lowpass_set_parameters(self):
-        self._params.adaptive_lowpass_a1 = _SAMPLING_INTERVAL_SEC / (
-            _LP_TAU_FAST + _SAMPLING_INTERVAL_SEC
+        self._params.adaptive_lowpass_a1 = self.SAMPLE_PEROID_SEC / (
+            _LP_TAU_FAST + self.SAMPLE_PEROID_SEC
         )
-        self._params.adaptive_lowpass_a2 = _SAMPLING_INTERVAL_SEC / (
-            _LP_TAU_SLOW + _SAMPLING_INTERVAL_SEC
+        self._params.adaptive_lowpass_a2 = self.SAMPLE_PEROID_SEC / (
+            _LP_TAU_SLOW + self.SAMPLE_PEROID_SEC
         )
         self._params.adaptive_lowpass_initialized = False
 
@@ -456,7 +457,7 @@ class VocAlgorithm:
             abs_delta = -abs_delta
         f1 = exp(_LP_ALPHA * abs_delta)
         tau_a = ((_LP_TAU_SLOW - _LP_TAU_FAST) * f1) + (_LP_TAU_FAST)
-        a3 = _SAMPLING_INTERVAL_SEC / (_SAMPLING_INTERVAL_SEC + tau_a)
+        a3 = self.SAMPLE_PEROID_SEC / (self.SAMPLE_PEROID_SEC + tau_a)
         self._params.adaptive_lowpass_x3 = (
             (1.0 - a3) * self._params.adaptive_lowpass_x3
         ) + (a3 * sample)
