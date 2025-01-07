@@ -1,6 +1,7 @@
 # Support for SGP40 VOC sensor
 #
 # Copyright (C) 2022 Adrien Le Masle
+# Copyright (C) 2025 Chad Condon
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
@@ -11,7 +12,6 @@ from struct import unpack_from
 from .. import bus  # type:ignore
 from .voc_algorithm import VocAlgorithm
 
-SGP40_REPORT_TIME = 1
 SGP40_CHIP_ADDR = 0x59
 SGP40_WORD_LEN = 2
 
@@ -63,6 +63,8 @@ def _humidity_to_ticks(humidity):
 
 
 class SGP40:
+    HEATER_TEMP = 50.0
+
     def __init__(self, config):
         self.printer = config.get_printer()
         self.name = config.get_name().split()[-1]
@@ -74,16 +76,20 @@ class SGP40:
         self.temp_sensor = config.get("ref_temp_sensor", None)
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
 
+        self._heaters = []
+
         self.raw = self.voc = self.temp = self.humidity = 0
         self.min_temp = self.max_temp = 0
-        self.max_sample_time = 1
-        self.sample_timer = None
+        self.step_timer = None
 
         self.printer.add_object("sgp40 " + self.name, self)
         self._voc_algorithm = VocAlgorithm()
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
+
         self.printer.register_event_handler("klippy:connect", self._handle_connect)
+        self.printer.register_event_handler("klippy:ready", self._handle_ready)
+
         self._register_commands()
 
     def _register_commands(self):
@@ -108,6 +114,12 @@ class SGP40:
         response += "\nHumidity: %.2f %%" % (self.humidity)
         if not self.humidity_sensor:
             response += " (estimated)"
+
+        response += "\nAlgorithm State: %s" % (str(self._voc_algorithm.get_states()))
+        response += "\nCalibration: %s" % (
+            "Active" if self._voc_algorithm.calibrating else "Inactive"
+        )
+
         gcmd.respond_info(response)
 
     def _check_ref_sensor(self, name, value=None):
@@ -130,7 +142,15 @@ class SGP40:
 
         self._init_sgp40()
 
-        self.reactor.update_timer(self.sample_timer, self.reactor.NOW)
+        self.reactor.update_timer(self.step_timer, self.reactor.NOW)
+
+    def _handle_ready(self):
+        pheaters = self.printer.lookup_object("heaters")
+        self._heaters = [
+            pheaters.lookup_heater(n)
+            for n in pheaters.get_all_heaters()
+            if n.split()[0] == "extruder"
+        ]
 
     def setup_minmax(self, min_temp, max_temp):
         self.min_temp = min_temp
@@ -140,7 +160,7 @@ class SGP40:
         self._callback = cb
 
     def get_report_time_delta(self):
-        return SGP40_REPORT_TIME
+        return self._voc_algorithm.SAMPLE_PEROID_SEC
 
     def _init_sgp40(self):
         # Self test
@@ -148,9 +168,20 @@ class SGP40:
         if response[0] != 0xD400:
             logging.error(self._log_message("Self test error"))
 
-        self.sample_timer = self.reactor.register_timer(self._sample_sgp40)
+        self.step_timer = self.reactor.register_timer(self._handle_step)
 
-    def _sample_sgp40(self, eventtime):
+    @classmethod
+    def _is_hot(cls, heater, eventtime):
+        current_temp, target_temp = heater.get_temp(eventtime)
+        return target_temp or current_temp > cls.HEATER_TEMP
+
+    def _handle_step(self, eventtime):
+        # Check for heating
+        self._voc_algorithm.calibrating = not any(
+            self._is_hot(h, eventtime) for h in self._heaters
+        )
+
+        # Get reference temperature
         if self.temp_sensor:
             self.temp = self.printer.lookup_object(
                 "{}".format(self.temp_sensor)
@@ -159,6 +190,7 @@ class SGP40:
             # Temperatures defaults to 25C
             self.temp = 25
 
+        # Get reference humidity
         humidity = None
         if self.humidity_sensor:
             humidity = (
@@ -171,6 +203,7 @@ class SGP40:
         else:
             self.humidity = humidity
 
+        # Read sample
         cmd = (
             MEASURE_RAW_CMD_PREFIX
             + _humidity_to_ticks(self.humidity)
@@ -179,11 +212,13 @@ class SGP40:
         response = self._read_and_check(cmd)
         self.raw = response[0]
 
+        # Calculate VOC index
         self.voc = self._voc_algorithm.process(self.raw)
 
+        # Schedule next step
         measured_time = self.reactor.monotonic()
         self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
-        return measured_time + SGP40_REPORT_TIME
+        return measured_time + self._voc_algorithm.SAMPLE_PEROID_SEC
 
     def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
         reply_len = read_len * (SGP40_WORD_LEN + 1)  # CRC every word
