@@ -140,7 +140,9 @@ class VocAlgorithm:
                     sraw = _SRAW_MINIMUM + 32767
                 self._params.sraw = float(sraw - _SRAW_MINIMUM)
             self._params.voc_index = self._mox_model_process(self._params.sraw)
-            self._params.voc_index = self._sigmoid_scaled_process(self._params.voc_index)
+            self._params.voc_index = self._sigmoid_scaled_process(
+                self._params.voc_index
+            )
             self._params.voc_index = self._adaptive_lowpass_process(
                 self._params.voc_index
             )
