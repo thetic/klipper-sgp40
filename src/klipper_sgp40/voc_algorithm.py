@@ -98,17 +98,17 @@ class VocAlgorithm:
         self._adaptive_lowpass_set_parameters()
 
     def get_states(self):
-        state0 = self._mean_variance_estimator_get_mean()
-        state1 = self._mean_variance_estimator_get_std()
-        return state0, state1
+        mean = self._mean_variance_estimator_get_mean()
+        std = self._mean_variance_estimator_get_std()
+        return mean, std
 
-    def set_states(self, state0, state1):
+    def set_states(self, mean, std):
         self._mean_variance_estimator_set_states(
-            state0,
-            state1,
+            mean,
+            std,
             _PERSISTENCE_UPTIME_GAMMA,
         )
-        self._params.sraw = state0
+        self._params.sraw = mean
 
     def set_tuning_parameters(
         self,
@@ -186,7 +186,8 @@ class VocAlgorithm:
         self._params.mean_variance_estimator_gating_duration_minutes = 0.0
 
     def _mean_variance_estimator_set_states(self, mean, std, uptime_gamma):
-        self._params.mean_variance_estimator_mean = mean
+        self._params.mean_variance_estimator_sraw_offset = mean
+        self._params.mean_variance_estimator_mean = 0.0
         self._params.mean_variance_estimator_std = std
         self._params.mean_variance_estimator_uptime_gamma = uptime_gamma
         self._params.mean_variance_estimator_initialized = True
