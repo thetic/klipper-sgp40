@@ -1,6 +1,7 @@
 # Support for SGP40 VOC sensor
 #
 # Copyright (C) 2022 Adrien Le Masle
+# Copyright (C) 2025 Chad Condon
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
@@ -11,7 +12,6 @@ from struct import unpack_from
 from .. import bus  # type:ignore
 from .voc_algorithm import VocAlgorithm
 
-SGP40_REPORT_TIME = 1
 SGP40_CHIP_ADDR = 0x59
 SGP40_WORD_LEN = 2
 
@@ -63,6 +63,8 @@ def _humidity_to_ticks(humidity):
 
 
 class SGP40:
+    HEATER_TEMP = 50.0
+
     def __init__(self, config):
         self.printer = config.get_printer()
         self.name = config.get_name().split()[-1]
@@ -74,9 +76,7 @@ class SGP40:
         self.temp_sensor = config.get("ref_temp_sensor", None)
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
 
-        self.heater_names = config.getlist("heater", ("extruder",))
-        self.heater_temp = config.getfloat("heater_temp", 50.0)
-        self.heaters = []
+        self._heaters = []
 
         self.raw = self.voc = self.temp = self.humidity = 0
         self.min_temp = self.max_temp = 0
@@ -146,7 +146,11 @@ class SGP40:
 
     def _handle_ready(self):
         pheaters = self.printer.lookup_object("heaters")
-        self.heaters = [pheaters.lookup_heater(n) for n in self.heater_names]
+        self._heaters = [
+            pheaters.lookup_heater(n)
+            for n in pheaters.get_all_heaters()
+            if n.split()[0] == "extruder"
+        ]
 
     def setup_minmax(self, min_temp, max_temp):
         self.min_temp = min_temp
@@ -156,7 +160,7 @@ class SGP40:
         self._callback = cb
 
     def get_report_time_delta(self):
-        return SGP40_REPORT_TIME
+        return self._voc_algorithm.SAMPLE_PEROID_SEC
 
     def _init_sgp40(self):
         # Self test
@@ -166,15 +170,16 @@ class SGP40:
 
         self.step_timer = self.reactor.register_timer(self._handle_step)
 
+    @classmethod
+    def _is_hot(cls, heater, eventtime):
+        current_temp, target_temp = heater.get_temp(eventtime)
+        return target_temp or current_temp > cls.HEATER_TEMP
+
     def _handle_step(self, eventtime):
         # Check for heating
-        for heater in self.heaters:
-            current_temp, target_temp = heater.get_temp(eventtime)
-            if target_temp or current_temp > self.heater_temp:
-                self._voc_algorithm.calibrating = False
-                break
-        else:
-            self._voc_algorithm.calibrating = True
+        self._voc_algorithm.calibrating = not any(
+            self._is_hot(h, eventtime) for h in self._heaters
+        )
 
         # Get reference temperature
         if self.temp_sensor:
