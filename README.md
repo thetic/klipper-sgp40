@@ -107,7 +107,64 @@ ref_temp_sensor: bme280 BME_IN
 ref_humidity_sensor: bme280 BME_IN
 ```
 
+## Calibration
+
+> [!INFO]
+> The printer cannot be used during calibration.
+
+Calibration establishes a baseline corresponding to "clean air", where "clean air" means as clean as the air in the room.
+This will take at least 8 hours and ideally 24 hours.
+
+> [!WARNING]
+> Wash your printer if there is _any_ smell prior to calibration.
+> There is no point calibrating a baseline if it is dirty and off gassing.
+> Use hot water & soap to scrub the panels, enclosures, print sheets, beds, etc.
+>
+> A dirty printer will result in VOC readings that start around 100, but then rise to 400+.
+> The air is steadily getting dirtier from whatever is off-gassing.
+> The air will keep getting worse until it reaches saturation.
+> If you were to plot the raw response, you’d see it steadily degrade over time.
+>
+> The initial plateau at 100 VOC Index is because the system will assume the initial conditions are nominal before adjusting the expected range;
+> this is when the VOC Index will begin to increase.
+
+1. Cool down the printer
+2. Make sure any air filter fans are turned off.
+3. Open the printer enclosure
+4. (_Optional_) Remove any filter material (e.g. carbon).
+   This helps ensure all sensors are exposed to the same air and reach similar calibrations.
+5. Let some fresh air into the room for a minute or two.
+   Open a window for a few minutes, flap a hand towel in the doorway, whatever.
+   The objective is to get clean air into the enclosure.
+   **This air will serve as reference for the baseline.**
+   If you’re not happy breathing it, it isn't clean air.
+6. Close the printer enclosure.
+7. Leave the printer alone for at least 8 hours, and up to 24 hours if possible.
+8. Run the [`CALIBRATE_SGP40`](#CALIBRATE_SGP40) for each configured sensor.
+9. Run the [`SAVE_CONFIG`](https://www.klipper3d.org/G-Codes.html#save_config) command.
+   This will add the baseline values to `printer.cfg`.
+10. Reinstall any filter media removed in step 4.
+
+The system should now have a good baseline for the sensors.
+
+> [!INFO]
+> Sensor readings may drift over time requiring recalibration.
+
+## G-Code Commands
+
+### `CALIBRATE_SGP40`
+
+`CALIBRATE_SGP40 SENSOR=config_name`:
+Store the SGP40 sensor's calibrated baseline.
+
+### QUERY_SGP40
+
+`QUERY_SGP40 SENSOR=config_name`:
+Queries the current state of the SGP40 sensor.
+The data displayed on the terminal.
+
 ## Attribution
 
 - This project was adapted from the [Pull Request against Klipper](https://github.com/Klipper3d/klipper/pull/6738) by Stefan Dej
   which was itself adapted from the [Nevermore Max](https://github.com/nevermore3d/Nevermore_Max) project.
+- Many features were adapted from the [Nevermore Controller](https://github.com/SanaaHamel/nevermore-controller) project.
