@@ -84,8 +84,13 @@ class SGP40:
         self.min_temp = self.max_temp = 0
         self.step_timer = None
 
-        self.printer.add_object("sgp40 " + self.name, self)
+        mean = config.getfloat("voc_mean", None)
+        stddev = config.getfloat("voc_stddev", None)
         self._voc_algorithm = VocAlgorithm()
+        if mean is not None and stddev is not None:
+            self._voc_algorithm.set_states(mean, stddev)
+
+        self.printer.add_object("sgp40 " + self.name, self)
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
 
@@ -117,7 +122,9 @@ class SGP40:
         if not self.humidity_sensor:
             response += " (estimated)"
 
-        response += "\nAlgorithm State: %s" % (str(self._voc_algorithm.get_states()))
+        response += (
+            "\nvoc_mean: %.3f\nvoc_stddev: %.3f" % self._voc_algorithm.get_states()
+        )
         response += "\nCalibration: %s" % (
             "Active" if self._voc_algorithm.calibrating else "Inactive"
         )
