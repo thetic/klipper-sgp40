@@ -106,10 +106,15 @@ class SGP40:
             "SENSOR",
             self.name,
             self.cmd_QUERY_SGP40,
-            desc=self.cmd_QUERY_SGP40_help,
+            desc="Query sensor for the current values",
         )
-
-    cmd_QUERY_SGP40_help = "Query sensor for the current values"
+        gcode.register_mux_command(
+            "CALIBRATE_SGP40",
+            "SENSOR",
+            self.name,
+            self.cmd_CALIBRATE_SGP40,
+            desc="Calibrate SGP40",
+        )
 
     def cmd_QUERY_SGP40(self, gcmd):
         response = "VOC Index: %d\nGas Raw: %d" % (self.voc, self.raw)
@@ -130,6 +135,21 @@ class SGP40:
         )
 
         gcmd.respond_info(response)
+
+    def cmd_CALIBRATE_SGP40(self, gcmd):
+        # Log and report results
+        mean, stddev = self._voc_algorithm.get_states()
+        gcmd.respond_info(
+            "SGP40 parameters: voc_mean=%.3f, voc_stddev=%.3f\n"
+            "The SAVE_CONFIG command will update the printer config file\n"
+            "with these parameters and restart the printer." % (mean, stddev)
+        )
+
+        # Store results for SAVE_CONFIG
+        name = "temperature_sensor " + self.name
+        configfile = self.printer.lookup_object("configfile")
+        configfile.set(name, "voc_mean", "%.3f" % (mean,))
+        configfile.set(name, "voc_stddev", "%.3f" % (stddev,))
 
     def _check_ref_sensor(self, name, value=None):
         sensor = self.printer.lookup_object(name)
