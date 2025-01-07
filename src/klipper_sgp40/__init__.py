@@ -15,6 +15,7 @@ from .voc_algorithm import VocAlgorithm
 SGP40_CHIP_ADDR = 0x59
 SGP40_WORD_LEN = 2
 
+HEATER_OFF_CMD = [0x36, 0x15]
 SELF_TEST_CMD = [0x28, 0x0E]
 MEASURE_RAW_CMD_PREFIX = [0x26, 0x0F]
 
@@ -163,6 +164,8 @@ class SGP40:
         return self._voc_algorithm.SAMPLE_PEROID_SEC
 
     def _init_sgp40(self):
+        self._read_and_check(HEATER_OFF_CMD, read_len=0)
+
         # Self test
         response = self._read_and_check(SELF_TEST_CMD, wait_time_s=0.5)
         if response[0] != 0xD400:
@@ -221,22 +224,26 @@ class SGP40:
         return measured_time + self._voc_algorithm.SAMPLE_PEROID_SEC
 
     def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
-        reply_len = read_len * (SGP40_WORD_LEN + 1)  # CRC every word
-
         self.i2c.i2c_write(cmd)
 
         # Wait
         self.reactor.pause(self.reactor.monotonic() + wait_time_s)
 
-        params = self.i2c.i2c_read([], reply_len)
-        response = bytearray(params["response"])
+        chunk_size = SGP40_WORD_LEN + 1
+        reply_len = read_len * chunk_size  # CRC every word
 
         data = []
 
-        for i in range(0, reply_len, 3):
-            if not _check_crc8(response[i : i + 2], response[i + 2]):
-                logging.warning(self._log_message("Checksum error on read!"))
-            data.append(unpack_from(">H", response[i : i + 2])[0])
+        if reply_len:
+            params = self.i2c.i2c_read([], reply_len)
+            response = bytearray(params["response"])
+
+            for i in range(0, reply_len, chunk_size):
+                if not _check_crc8(
+                    response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
+                ):
+                    logging.warning(self._log_message("Checksum error on read!"))
+                data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
 
         return data
 
