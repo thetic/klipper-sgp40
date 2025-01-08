@@ -7,6 +7,7 @@
 
 import logging
 import math
+import re
 from struct import unpack_from
 
 from .. import bus  # type:ignore
@@ -146,10 +147,11 @@ class SGP40:
 
     def _handle_ready(self):
         pheaters = self.printer.lookup_object("heaters")
+        extruder_pattern = re.compile(r"extruder\d*$")
         self._heaters = [
             pheaters.lookup_heater(n)
             for n in pheaters.get_all_heaters()
-            if n.split()[0] == "extruder"
+            if extruder_pattern.match(n)
         ]
 
     def setup_minmax(self, min_temp, max_temp):
