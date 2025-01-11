@@ -2,58 +2,58 @@ from math import exp, sqrt
 
 
 class GasIndexAlgorithm:
-    _INDEX_OFFSET_DEFAULT: float = 100.0
-    _LP_TAU_FAST: float = 20.0
-    _LP_TAU_SLOW: float = 500.0
-    _MVE_GAMMA_SCALING: float = 64.0
-    _MVE_ADDITIONAL_GAMMA_MEAN_SCALING: float = 8.0
+    _INDEX_OFFSET_DEFAULT = 100.0
+    _LP_TAU_FAST = 20.0
+    _LP_TAU_SLOW = 500.0
+    _MVE_GAMMA_SCALING = 64.0
+    _MVE_ADDITIONAL_GAMMA_MEAN_SCALING = 8.0
 
-    def __init__(self, sampling_interval: float = 1.0) -> None:
+    def __init__(self, sampling_interval=1.0):
         """
         Args:
             sampling_interval: Tested from 1 to 10 (seconds)
         """
-        self.calibrating: bool = True
-        self._sampling_interval: float = sampling_interval
-        self._index_offset: float = self._INDEX_OFFSET_DEFAULT
-        self._sraw_minimum: int = 20000
-        self._gating_max_duration_minutes: float = 60.0 * 3.0
-        self._init_duration_mean: float = 3600.0 * 0.75
-        self._init_duration_variance: float = 3600.0 * 1.45
-        self._gating_threshold: float = 340.0
-        self._index_gain: float = 230.0
-        self._tau_mean_hours: float = 12.0
-        self._tau_variance_hours: float = 12.0
-        self._sraw_std_initial: float = 50.0
-        self._mve_initialized: bool = False
-        self._mve_mean: float = 0.0
-        self._mve_sraw_offset: float = 0.0
-        self._mve_std: float = self._sraw_std_initial
-        self._mve_gamma_mean: float = 0.0
-        self._mve_gamma_variance: float = 0.0
-        self._mve_gamma_initial_mean: float = 0.0
-        self._mve_gamma_initial_variance: float = 0.0
-        self.m_Mean_Variance_Estimator__Gamma_Mean: float = 0.0
-        self.m_Mean_Variance_Estimator__Gamma_Variance: float = 0.0
-        self._mve_uptime_gamma: float = 0.0
-        self._mve_uptime_gating: float = 0.0
-        self._mve_gating_duration_minutes: float = 0.0
-        self._mve_sigmoid_k: float = 0.0
-        self._mve_sigmoid_x0: float = 0.0
-        self._mox_sraw_std: float = 0.0
-        self._mox_sraw_mean: float = 0.0
-        self._sigmoid_scaled_k: float = 0.0
-        self._sigmoid_scaled_x0: float = 0.0
-        self._sigmoid_scaled_offset_default: float = 0.0
-        self._adaptive_lowpass_a1: float = 0.0
-        self._adaptive_lowpass_a2: float = 0.0
-        self._adaptive_lowpass_initialized: bool = False
-        self._adaptive_lowpass_x1: float = 0.0
-        self._adaptive_lowpass_x2: float = 0.0
-        self._adaptive_lowpass_x3: float = 0.0
-        self._uptime: float = 0.0
-        self._sraw: float = 0.0
-        self._gas_index: float = 0
+        self.calibrating = True
+        self._sampling_interval = sampling_interval
+        self._index_offset = self._INDEX_OFFSET_DEFAULT
+        self._sraw_minimum = 20000
+        self._gating_max_duration_minutes = 60.0 * 3.0
+        self._init_duration_mean = 3600.0 * 0.75
+        self._init_duration_variance = 3600.0 * 1.45
+        self._gating_threshold = 340.0
+        self._index_gain = 230.0
+        self._tau_mean_hours = 12.0
+        self._tau_variance_hours = 12.0
+        self._sraw_std_initial = 50.0
+        self._mve_initialized = False
+        self._mve_mean = 0.0
+        self._mve_sraw_offset = 0.0
+        self._mve_std = self._sraw_std_initial
+        self._mve_gamma_mean = 0.0
+        self._mve_gamma_variance = 0.0
+        self._mve_gamma_initial_mean = 0.0
+        self._mve_gamma_initial_variance = 0.0
+        self.__mve_gamma_mean = 0.0
+        self.__mve_gamma_variance = 0.0
+        self._mve_uptime_gamma = 0.0
+        self._mve_uptime_gating = 0.0
+        self._mve_gating_duration_minutes = 0.0
+        self._mve_sigmoid_k = 0.0
+        self._mve_sigmoid_x0 = 0.0
+        self._mox_sraw_std = 0.0
+        self._mox_sraw_mean = 0.0
+        self._sigmoid_scaled_k = 0.0
+        self._sigmoid_scaled_x0 = 0.0
+        self._sigmoid_scaled_offset_default = 0.0
+        self._adaptive_lowpass_a1 = 0.0
+        self._adaptive_lowpass_a2 = 0.0
+        self._adaptive_lowpass_initialized = False
+        self._adaptive_lowpass_x1 = 0.0
+        self._adaptive_lowpass_x2 = 0.0
+        self._adaptive_lowpass_x3 = 0.0
+        self._uptime = 0.0
+        self._sraw = 0.0
+        self._gas_index = 0
         self.reset()
 
     def reset(self):
@@ -67,7 +67,7 @@ class GasIndexAlgorithm:
         self._gas_index = 0
         self._init_instances()
 
-    def get_states(self) -> tuple[float, float]:
+    def get_states(self):
         """Get current algorithm states.
 
         Retrieved values can be used in set_states() to resume operation
@@ -78,7 +78,7 @@ class GasIndexAlgorithm:
             self._mve_std,
         )
 
-    def set_states(self, mean: float, std: float):
+    def set_states(self, mean, std):
         """Set previously retrieved algorithm states to resume operation
         after a short interruption, skipping initial learning phase.
 
@@ -93,12 +93,12 @@ class GasIndexAlgorithm:
 
     def set_tuning_parameters(
         self,
-        index_offset: int,
-        learning_time_offset_hours: int,
-        learning_time_gain_hours: int,
-        gating_max_duration_minutes: int,
-        std_initial: int,
-        gain_factor: int,
+        index_offset,
+        learning_time_offset_hours,
+        learning_time_gain_hours,
+        gating_max_duration_minutes,
+        std_initial,
+        gain_factor,
     ):
         self._index_offset = float(index_offset)
         self._tau_mean_hours = float(learning_time_offset_hours)
@@ -109,7 +109,7 @@ class GasIndexAlgorithm:
         self._init_instances()
 
     @property
-    def tuning_parameters(self) -> dict[str, int]:
+    def tuning_parameters(self):
         return {
             "index_offset": int(self._index_offset),
             "learning_time_offset_hours": int(self._tau_mean_hours),
@@ -120,10 +120,10 @@ class GasIndexAlgorithm:
         }
 
     @property
-    def sampling_interval(self) -> float:
+    def sampling_interval(self):
         return self._sampling_interval
 
-    def process(self, sraw: int) -> int:
+    def process(self, sraw):
         """Calculate the gas index value from the raw sensor value.
 
         Args:
@@ -133,7 +133,7 @@ class GasIndexAlgorithm:
             Calculated gas index value from the raw sensor value.
             Zero during initial blackout period and 1..500 afterwards
         """
-        initial_blackout: float = 45.0
+        initial_blackout = 45.0
         if self._uptime <= initial_blackout:
             self._uptime = self._uptime + self._sampling_interval
         else:
@@ -142,7 +142,7 @@ class GasIndexAlgorithm:
                     sraw = self._sraw_minimum + 1
                 elif sraw > (self._sraw_minimum + 32767):
                     sraw = self._sraw_minimum + 32767
-                self._sraw = float((sraw - self._sraw_minimum))
+                self._sraw = float(sraw - self._sraw_minimum)
             self._gas_index = self._mox_process(self._sraw)
             self._gas_index = self._sigmoid_scaled_process(self._gas_index)
             self._gas_index = self._adaptive_lowpass_process(self._gas_index)
@@ -180,13 +180,13 @@ class GasIndexAlgorithm:
         self._mve_gamma_initial_variance = (
             self._MVE_GAMMA_SCALING * self._sampling_interval
         ) / (2500.0 + self._sampling_interval)
-        self.m_Mean_Variance_Estimator__Gamma_Mean = 0.0
-        self.m_Mean_Variance_Estimator__Gamma_Variance = 0.0
+        self.__mve_gamma_mean = 0.0
+        self.__mve_gamma_variance = 0.0
         self._mve_uptime_gamma = 0.0
         self._mve_uptime_gating = 0.0
         self._mve_gating_duration_minutes = 0.0
 
-    def _mve_set_states(self, mean: float, std: float, uptime_gamma: float):
+    def _mve_set_states(self, mean, std, uptime_gamma):
         self._mve_sraw_offset = mean
         self._mve_mean = 0.0
         self._mve_std = std
@@ -194,11 +194,11 @@ class GasIndexAlgorithm:
         self._mve_initialized = True
 
     @property
-    def _mve_offset_mean(self) -> float:
+    def _mve_offset_mean(self):
         return self._mve_mean + self._mve_sraw_offset
 
     def _mve_calculate_gamma(self):
-        mve_max: float = 32767.0
+        mve_max = 32767.0
         uptime_limit = mve_max - self._sampling_interval
         if self._mve_uptime_gamma < uptime_limit:
             self._mve_uptime_gamma = self._mve_uptime_gamma + self._sampling_interval
@@ -209,8 +209,8 @@ class GasIndexAlgorithm:
         gamma_mean = self._mve_gamma_mean + (
             (self._mve_gamma_initial_mean - self._mve_gamma_mean) * sigmoid_gamma_mean
         )
-        gating_threshold_initial: float = 510.0
-        gating_threshold_transition: float = 0.09
+        gating_threshold_initial = 510.0
+        gating_threshold_transition = 0.09
         gating_threshold_mean = self._gating_threshold + (
             (gating_threshold_initial - self._gating_threshold)
             * self._mve_sigmoid_process(self._mve_uptime_gating)
@@ -219,7 +219,7 @@ class GasIndexAlgorithm:
             gating_threshold_mean, gating_threshold_transition
         )
         sigmoid_gating_mean = self._mve_sigmoid_process(self._gas_index)
-        self.m_Mean_Variance_Estimator__Gamma_Mean = sigmoid_gating_mean * gamma_mean
+        self.__mve_gamma_mean = sigmoid_gating_mean * gamma_mean
         self._mve_sigmoid_set_parameters(self._init_duration_variance, 0.01)
         sigmoid_gamma_variance = self._mve_sigmoid_process(self._mve_uptime_gamma)
         gamma_variance = self._mve_gamma_variance + (
@@ -234,10 +234,8 @@ class GasIndexAlgorithm:
             gating_threshold_variance, gating_threshold_transition
         )
         sigmoid_gating_variance = self._mve_sigmoid_process(self._gas_index)
-        self.m_Mean_Variance_Estimator__Gamma_Variance = (
-            sigmoid_gating_variance * gamma_variance
-        )
-        max_ratio: float = 0.3
+        self.__mve_gamma_variance = sigmoid_gating_variance * gamma_variance
+        max_ratio = 0.3
         self._mve_gating_duration_minutes = self._mve_gating_duration_minutes + (
             (self._sampling_interval / 60.0)
             * (((1.0 - sigmoid_gating_mean) * (1.0 + max_ratio)) - max_ratio)
@@ -247,7 +245,7 @@ class GasIndexAlgorithm:
         if self._mve_gating_duration_minutes > self._gating_max_duration_minutes:
             self._mve_uptime_gating = 0.0
 
-    def _mve_process(self, sraw: float):
+    def _mve_process(self, sraw):
         if not self._mve_initialized:
             self._mve_initialized = True
             self._mve_sraw_offset = sraw
@@ -269,10 +267,7 @@ class GasIndexAlgorithm:
             self._mve_std = sqrt(
                 (
                     additional_scaling
-                    * (
-                        self._MVE_GAMMA_SCALING
-                        - self.m_Mean_Variance_Estimator__Gamma_Variance
-                    )
+                    * (self._MVE_GAMMA_SCALING - self.__mve_gamma_variance)
                 )
             ) * sqrt(
                 (
@@ -284,24 +279,21 @@ class GasIndexAlgorithm:
                         )
                     )
                     + (
-                        (
-                            (self.m_Mean_Variance_Estimator__Gamma_Variance * delta_sgp)
-                            / additional_scaling
-                        )
+                        ((self.__mve_gamma_variance * delta_sgp) / additional_scaling)
                         * delta_sgp
                     )
                 )
             )
             self._mve_mean = self._mve_mean + (
-                (self.m_Mean_Variance_Estimator__Gamma_Mean * delta_sgp)
+                (self.__mve_gamma_mean * delta_sgp)
                 / self._MVE_ADDITIONAL_GAMMA_MEAN_SCALING
             )
 
-    def _mve_sigmoid_set_parameters(self, x0: float, k: float):
+    def _mve_sigmoid_set_parameters(self, x0, k):
         self._mve_sigmoid_k = k
         self._mve_sigmoid_x0 = x0
 
-    def _mve_sigmoid_process(self, sample: float) -> float:
+    def _mve_sigmoid_process(self, sample):
         if not self.calibrating:
             return 0.0
 
@@ -313,24 +305,22 @@ class GasIndexAlgorithm:
         else:
             return 1.0 / (1.0 + exp(x))
 
-    def _mox_set_parameters(self, sraw_std: float, sraw_mean: float):
+    def _mox_set_parameters(self, sraw_std, sraw_mean):
         self._mox_sraw_std = sraw_std
         self._mox_sraw_mean = sraw_mean
 
-    def _mox_process(self, sraw: float) -> float:
+    def _mox_process(self, sraw):
         return (
             (sraw - self._mox_sraw_mean) / (-1.0 * (self._mox_sraw_std + 220.0))
         ) * self._index_gain
 
-    def _sigmoid_scaled_set_parameters(
-        self, x0: float, k: float, offset_default: float
-    ):
+    def _sigmoid_scaled_set_parameters(self, x0, k, offset_default):
         self._sigmoid_scaled_k = k
         self._sigmoid_scaled_x0 = x0
         self._sigmoid_scaled_offset_default = offset_default
 
-    def _sigmoid_scaled_process(self, sample: float) -> float:
-        sigmoid_l: float = 500.0
+    def _sigmoid_scaled_process(self, sample):
+        sigmoid_l = 500.0
         x = self._sigmoid_scaled_k * (sample - self._sigmoid_scaled_x0)
         if x < -50.0:
             return sigmoid_l
@@ -357,7 +347,7 @@ class GasIndexAlgorithm:
         )
         self._adaptive_lowpass_initialized = False
 
-    def _adaptive_lowpass_process(self, sample: float) -> float:
+    def _adaptive_lowpass_process(self, sample):
         if not self._adaptive_lowpass_initialized:
             self._adaptive_lowpass_x1 = sample
             self._adaptive_lowpass_x2 = sample
