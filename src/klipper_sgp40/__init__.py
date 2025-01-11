@@ -105,18 +105,18 @@ class SGP40:
             "QUERY_SGP40",
             "SENSOR",
             self.name,
-            self.cmd_QUERY_SGP40,
+            self.query_gcode,
             desc="Query sensor for the current values",
         )
         gcode.register_mux_command(
             "CALIBRATE_SGP40",
             "SENSOR",
             self.name,
-            self.cmd_CALIBRATE_SGP40,
+            self.calibrate_gcode,
             desc="Calibrate SGP40",
         )
 
-    def cmd_QUERY_SGP40(self, gcmd):
+    def query_gcode(self, gcmd):
         response = "VOC Index: %d\nGas Raw: %d" % (self.voc, self.raw)
 
         response += "\nTemperature: %.2f C" % (self.temp)
@@ -134,7 +134,7 @@ class SGP40:
 
         gcmd.respond_info(response)
 
-    def cmd_CALIBRATE_SGP40(self, gcmd):
+    def calibrate_gcode(self, gcmd):
         # Log and report results
         mean, stddev = self._gia.get_states()
         gcmd.respond_info(

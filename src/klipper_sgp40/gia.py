@@ -326,9 +326,9 @@ class GasIndexAlgorithm:
                 / self._MVE_ADDITIONAL_GAMMA_MEAN_SCALING
             )
 
-    def _mve_sigmoid_set_parameters(self, X0: float, K: float):
-        self._mve_sigmoid_k = K
-        self._mve_sigmoid_x0 = X0
+    def _mve_sigmoid_set_parameters(self, x0: float, k: float):
+        self._mve_sigmoid_k = k
+        self._mve_sigmoid_x0 = x0
 
     def _mve_sigmoid_process(self, sample: float) -> float:
         if not self.calibrating:
@@ -353,10 +353,10 @@ class GasIndexAlgorithm:
         ) * self._index_gain
 
     def _sigmoid_scaled_set_parameters(
-        self, X0: float, K: float, offset_default: float
+        self, x0: float, k: float, offset_default: float
     ):
-        self._sigmoid_scaled_k = K
-        self._sigmoid_scaled_x0 = X0
+        self._sigmoid_scaled_k = k
+        self._sigmoid_scaled_x0 = x0
         self._sigmoid_scaled_offset_default = offset_default
 
     def _sigmoid_scaled_process(self, sample: float) -> float:
