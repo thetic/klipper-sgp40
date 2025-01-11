@@ -84,8 +84,13 @@ class SGP40:
         self.min_temp = self.max_temp = 0
         self.step_timer = None
 
-        self.printer.add_object("sgp40 " + self.name, self)
+        mean = config.getfloat("voc_mean", None)
+        stddev = config.getfloat("voc_stddev", None)
         self._voc_algorithm = VocAlgorithm()
+        if mean is not None and stddev is not None:
+            self._voc_algorithm.set_states(mean, stddev)
+
+        self.printer.add_object("sgp40 " + self.name, self)
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
 
@@ -101,10 +106,15 @@ class SGP40:
             "SENSOR",
             self.name,
             self.cmd_QUERY_SGP40,
-            desc=self.cmd_QUERY_SGP40_help,
+            desc="Query sensor for the current values",
         )
-
-    cmd_QUERY_SGP40_help = "Query sensor for the current values"
+        gcode.register_mux_command(
+            "CALIBRATE_SGP40",
+            "SENSOR",
+            self.name,
+            self.cmd_CALIBRATE_SGP40,
+            desc="Calibrate SGP40",
+        )
 
     def cmd_QUERY_SGP40(self, gcmd):
         response = "VOC Index: %d\nGas Raw: %d" % (self.voc, self.raw)
@@ -117,12 +127,29 @@ class SGP40:
         if not self.humidity_sensor:
             response += " (estimated)"
 
-        response += "\nAlgorithm State: %s" % (str(self._voc_algorithm.get_states()))
+        response += (
+            "\nvoc_mean: %.3f\nvoc_stddev: %.3f" % self._voc_algorithm.get_states()
+        )
         response += "\nCalibration: %s" % (
             "Active" if self._voc_algorithm.calibrating else "Inactive"
         )
 
         gcmd.respond_info(response)
+
+    def cmd_CALIBRATE_SGP40(self, gcmd):
+        # Log and report results
+        mean, stddev = self._voc_algorithm.get_states()
+        gcmd.respond_info(
+            "SGP40 parameters: voc_mean=%.3f, voc_stddev=%.3f\n"
+            "The SAVE_CONFIG command will update the printer config file\n"
+            "with these parameters and restart the printer." % (mean, stddev)
+        )
+
+        # Store results for SAVE_CONFIG
+        name = "temperature_sensor " + self.name
+        configfile = self.printer.lookup_object("configfile")
+        configfile.set(name, "voc_mean", "%.3f" % (mean,))
+        configfile.set(name, "voc_stddev", "%.3f" % (stddev,))
 
     def _check_ref_sensor(self, name, value=None):
         sensor = self.printer.lookup_object(name)
