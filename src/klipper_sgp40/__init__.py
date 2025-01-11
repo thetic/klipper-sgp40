@@ -11,7 +11,7 @@ import re
 from struct import unpack_from
 
 from .. import bus  # type:ignore
-from .voc_algorithm import VocAlgorithm
+from .gia import GasIndexAlgorithm
 
 SGP40_CHIP_ADDR = 0x59
 SGP40_WORD_LEN = 2
@@ -86,9 +86,9 @@ class SGP40:
 
         mean = config.getfloat("voc_mean", None)
         stddev = config.getfloat("voc_stddev", None)
-        self._voc_algorithm = VocAlgorithm()
+        self._gia = GasIndexAlgorithm()
         if mean is not None and stddev is not None:
-            self._voc_algorithm.set_states(mean, stddev)
+            self._gia.set_states(mean, stddev)
 
         self.printer.add_object("sgp40 " + self.name, self)
         if self.printer.get_start_args().get("debugoutput") is not None:
@@ -127,18 +127,16 @@ class SGP40:
         if not self.humidity_sensor:
             response += " (estimated)"
 
-        response += (
-            "\nvoc_mean: %.3f\nvoc_stddev: %.3f" % self._voc_algorithm.get_states()
-        )
+        response += "\nvoc_mean: %.3f\nvoc_stddev: %.3f" % self._gia.get_states()
         response += "\nCalibration: %s" % (
-            "Active" if self._voc_algorithm.calibrating else "Inactive"
+            "Active" if self._gia.calibrating else "Inactive"
         )
 
         gcmd.respond_info(response)
 
     def cmd_CALIBRATE_SGP40(self, gcmd):
         # Log and report results
-        mean, stddev = self._voc_algorithm.get_states()
+        mean, stddev = self._gia.get_states()
         gcmd.respond_info(
             "SGP40 parameters: voc_mean=%.3f, voc_stddev=%.3f\n"
             "The SAVE_CONFIG command will update the printer config file\n"
@@ -190,7 +188,7 @@ class SGP40:
         self._callback = cb
 
     def get_report_time_delta(self):
-        return self._voc_algorithm.SAMPLE_PEROID_SEC
+        return self._gia.SAMPLE_PEROID_SEC
 
     def _init_sgp40(self):
         self._read_and_check(HEATER_OFF_CMD, read_len=0)
@@ -209,7 +207,7 @@ class SGP40:
 
     def _handle_step(self, eventtime):
         # Check for heating
-        self._voc_algorithm.calibrating = not any(
+        self._gia.calibrating = not any(
             self._is_hot(h, eventtime) for h in self._heaters
         )
 
@@ -245,12 +243,12 @@ class SGP40:
         self.raw = response[0]
 
         # Calculate VOC index
-        self.voc = self._voc_algorithm.process(self.raw)
+        self.voc = self._gia.process(self.raw)
 
         # Schedule next step
         measured_time = self.reactor.monotonic()
         self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
-        return measured_time + self._voc_algorithm.SAMPLE_PEROID_SEC
+        return measured_time + self._gia.sampling_interval
 
     def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
         self.i2c.i2c_write(cmd)
