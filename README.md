@@ -146,7 +146,7 @@ The system should now have a good baseline for the sensors.
 
 ## G-Code Commands
 
-### `CALIBRATE_SGP40`
+### CALIBRATE_SGP40
 
 `CALIBRATE_SGP40 SENSOR=config_name`:
 Store the SGP40 sensor's calibrated baseline.
