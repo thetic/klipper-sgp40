@@ -2,7 +2,6 @@ from math import exp, sqrt
 
 
 class GasIndexAlgorithm:
-    _DEFAULT_SAMPLING_INTERVAL: float = 1.0
     _INITIAL_BLACKOUT: float = 45.0
     _INDEX_GAIN: float = 230.0
     _SRAW_STD_INITIAL: float = 50.0
