@@ -118,6 +118,13 @@ class SGP40:
             self.calibrate_gcode,
             desc="Calibrate SGP40",
         )
+        gcode.register_mux_command(
+            "RESET_SGP40",
+            "SENSOR",
+            self.name,
+            self.reset_gcode,
+            desc="Clear calibration settings",
+        )
 
     def query_gcode(self, gcmd):
         response = "VOC Index: %d\nGas Raw: %d" % (self.voc, self.raw)
@@ -151,6 +158,9 @@ class SGP40:
         configfile = self.printer.lookup_object("configfile")
         configfile.set(name, "voc_mean", "%.3f" % (mean,))
         configfile.set(name, "voc_stddev", "%.3f" % (stddev,))
+
+    def reset_gcode(self, gmcd):
+        self._gia.reset()
 
     def _check_ref_sensor(self, name, value=None):
         sensor = self.printer.lookup_object(name)
