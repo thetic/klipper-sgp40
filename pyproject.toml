@@ -18,8 +18,6 @@ requires = ["setuptools >= 64", "setuptools-scm >= 8"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "B", "I"]
-ignore = ["E501"]
-unfixable = ["B"]
+extend-select = ["B", "I", "N"]
 
 [tool.setuptools_scm]
