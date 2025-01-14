@@ -26,8 +26,6 @@ Then, add the following to your `moonraker.conf` to enable automatic updates:
 [update_manager klipper-sgp40]
 type: git_repo
 path: ~/klipper-sgp40
-virtualenv: ~/klippy-env
-requirements: requirements.txt
 origin: https://github.com/thetic/klipper-sgp40.git
 primary_branch: main
 managed_services: klipper
