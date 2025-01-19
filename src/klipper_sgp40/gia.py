@@ -62,7 +62,6 @@ class GasIndexAlgorithm:
         Previously set tuning parameters are preserved.
         Call this when resuming operation after a measurement interruption.
         """
-        self._uptime = 0.0
         self._sraw = 0.0
         self._gas_index = 0
         self._init_instances()
