@@ -51,7 +51,6 @@ class GasIndexAlgorithm:
         self._adaptive_lowpass_x1 = 0.0
         self._adaptive_lowpass_x2 = 0.0
         self._adaptive_lowpass_x3 = 0.0
-        self._uptime = 0.0
         self._sraw = 0.0
         self._gas_index = 0
         self.reset()
@@ -132,24 +131,20 @@ class GasIndexAlgorithm:
             Calculated gas index value from the raw sensor value.
             Zero during initial blackout period and 1..500 afterwards
         """
-        initial_blackout = 45.0
-        if self._uptime <= initial_blackout:
-            self._uptime = self._uptime + self._sampling_interval
-        else:
-            if (sraw > 0) and (sraw < 65000):
-                if sraw < (self._sraw_minimum + 1):
-                    sraw = self._sraw_minimum + 1
-                elif sraw > (self._sraw_minimum + 32767):
-                    sraw = self._sraw_minimum + 32767
-                self._sraw = float(sraw - self._sraw_minimum)
-            self._gas_index = self._mox_process(self._sraw)
-            self._gas_index = self._sigmoid_scaled_process(self._gas_index)
-            self._gas_index = self._adaptive_lowpass_process(self._gas_index)
-            if self._gas_index < 0.5:
-                self._gas_index = 0.5
-            if self._sraw > 0.0:
-                self._mve_process(self._sraw)
-                self._mox_set_parameters(self._mve_std, self._mve_offset_mean)
+        if (sraw > 0) and (sraw < 65000):
+            if sraw < (self._sraw_minimum + 1):
+                sraw = self._sraw_minimum + 1
+            elif sraw > (self._sraw_minimum + 32767):
+                sraw = self._sraw_minimum + 32767
+            self._sraw = float(sraw - self._sraw_minimum)
+        self._gas_index = self._mox_process(self._sraw)
+        self._gas_index = self._sigmoid_scaled_process(self._gas_index)
+        self._gas_index = self._adaptive_lowpass_process(self._gas_index)
+        if self._gas_index < 0.5:
+            self._gas_index = 0.5
+        if self._sraw > 0.0:
+            self._mve_process(self._sraw)
+            self._mox_set_parameters(self._mve_std, self._mve_offset_mean)
         return round(self._gas_index)
 
     def _init_instances(self):
