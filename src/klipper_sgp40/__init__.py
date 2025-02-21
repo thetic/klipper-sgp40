@@ -79,6 +79,7 @@ class SGP40:
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
 
         self._heaters = []
+        self._measuring = False
 
         self.raw = self.voc = self.temp = self.humidity = 0
         self.min_temp = self.max_temp = 0
@@ -248,10 +249,10 @@ class SGP40:
             self._is_hot(h, eventtime) for h in self._heaters
         )
 
-        # TODO: don't do this the first time
-        # Read latest measurement
-        response = self._read()
-        self.raw = response[0]
+        if self._measuring:
+            # Read latest measurement
+            response = self._read()
+            self.raw = response[0]
 
         # Calculate VOC index
         self.voc = self._gia.process(self.raw)
@@ -285,6 +286,7 @@ class SGP40:
             + _temperature_to_ticks(self.temp)
         )
         self.i2c.i2c_write(cmd)
+        self._measuring = True
 
         # Schedule next step
         measured_time = self.reactor.monotonic()
