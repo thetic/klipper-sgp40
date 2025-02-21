@@ -201,7 +201,7 @@ class SGP40:
         self._callback = cb
 
     def get_report_time_delta(self):
-        return self._gia.SAMPLE_PEROID_SEC
+        return self._gia.sampling_interval
 
     def _init_sgp40(self):
         self._read_and_check(HEATER_OFF_CMD, read_len=0)
