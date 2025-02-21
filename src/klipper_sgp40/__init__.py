@@ -248,6 +248,14 @@ class SGP40:
             self._is_hot(h, eventtime) for h in self._heaters
         )
 
+        # TODO: don't do this the first time
+        # Read latest measurement
+        response = self._read()
+        self.raw = response[0]
+
+        # Calculate VOC index
+        self.voc = self._gia.process(self.raw)
+
         # Get reference temperature
         if self.temp_sensor:
             self.temp = self.printer.lookup_object(
@@ -270,19 +278,13 @@ class SGP40:
         else:
             self.humidity = humidity
 
-        # Read sample
+        # Start next measurement
         cmd = (
             MEASURE_RAW_CMD_PREFIX
             + _humidity_to_ticks(self.humidity)
             + _temperature_to_ticks(self.temp)
         )
         self.i2c.i2c_write(cmd)
-        self._wait_ms(30)
-        response = self._read()
-        self.raw = response[0]
-
-        # Calculate VOC index
-        self.voc = self._gia.process(self.raw)
 
         # Schedule next step
         measured_time = self.reactor.monotonic()
