@@ -267,12 +267,15 @@ class SGP40:
         self.i2c.i2c_write(cmd)
 
         # Wait
-        self.reactor.pause(self.reactor.monotonic() + wait_time_s)
+        self._wait_ms(wait_time_s * 1000)
 
         if read_len:
             return self._read(read_len)
         else:
             return []
+
+    def _wait_ms(self, ms):
+        self.reactor.pause(self.reactor.monotonic() + ms / 1000)
 
     def _read(self, len=1):
         chunk_size = SGP40_WORD_LEN + 1
