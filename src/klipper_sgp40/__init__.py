@@ -204,10 +204,13 @@ class SGP40:
         return self._gia.sampling_interval
 
     def _init_sgp40(self):
-        self._read_and_check(HEATER_OFF_CMD, read_len=0)
+        self.i2c.i2c_write(HEATER_OFF_CMD)
+        self._wait_ms(50)
 
         # Self test
-        response = self._read_and_check(SELF_TEST_CMD, wait_time_s=0.5)
+        self.i2c.i2c_write(SELF_TEST_CMD)
+        self._wait_ms(500)
+        response = self._read()
         if response[0] != 0xD400:
             logging.error(self._log_message("Self test error"))
 
@@ -252,7 +255,9 @@ class SGP40:
             + _humidity_to_ticks(self.humidity)
             + _temperature_to_ticks(self.temp)
         )
-        response = self._read_and_check(cmd)
+        self.i2c.i2c_write(cmd)
+        self._wait_ms(50)
+        response = self._read()
         self.raw = response[0]
 
         # Calculate VOC index
@@ -262,17 +267,6 @@ class SGP40:
         measured_time = self.reactor.monotonic()
         self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
         return measured_time + self._gia.sampling_interval
-
-    def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
-        self.i2c.i2c_write(cmd)
-
-        # Wait
-        self._wait_ms(wait_time_s * 1000)
-
-        if read_len:
-            return self._read(read_len)
-        else:
-            return []
 
     def _wait_ms(self, ms):
         self.reactor.pause(self.reactor.monotonic() + ms / 1000)
