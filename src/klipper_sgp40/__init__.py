@@ -269,21 +269,26 @@ class SGP40:
         # Wait
         self.reactor.pause(self.reactor.monotonic() + wait_time_s)
 
+        if read_len:
+            return self._read(read_len)
+        else:
+            return []
+
+    def _read(self, len=1):
         chunk_size = SGP40_WORD_LEN + 1
-        reply_len = read_len * chunk_size  # CRC every word
+        reply_len = len * chunk_size  # CRC every word
 
         data = []
 
-        if reply_len:
-            params = self.i2c.i2c_read([], reply_len)
-            response = bytearray(params["response"])
+        params = self.i2c.i2c_read([], reply_len)
+        response = bytearray(params["response"])
 
-            for i in range(0, reply_len, chunk_size):
-                if not _check_crc8(
-                    response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
-                ):
-                    logging.warning(self._log_message("Checksum error on read!"))
-                data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
+        for i in range(0, reply_len, chunk_size):
+            if not _check_crc8(
+                response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
+            ):
+                logging.warning(self._log_message("Checksum error on read!"))
+            data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
 
         return data
 
