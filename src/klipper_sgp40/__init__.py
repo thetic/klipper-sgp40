@@ -212,15 +212,17 @@ class SGP40:
 
         self.step_timer = self.reactor.register_timer(self._handle_step)
 
-    def _is_hot(self, heater, eventtime):
-        current_temp, target_temp = heater.get_temp(eventtime)
-        return target_temp or current_temp > self.heater_temp
+    def _is_hot(self, eventtime):
+        for heater in self._heaters:
+            current_temp, target_temp = heater.get_temp(eventtime)
+            if target_temp or current_temp > self.heater_temp:
+                return True
+        else:
+            return False
 
     def _handle_step(self, eventtime):
         # Check for heating
-        self._gia.calibrating = not any(
-            self._is_hot(h, eventtime) for h in self._heaters
-        )
+        self._gia.calibrating = not self._is_hot(eventtime)
 
         if self._measuring:
             # Calculate VOC index
