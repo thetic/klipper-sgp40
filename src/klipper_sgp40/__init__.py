@@ -7,7 +7,6 @@
 
 import logging
 import math
-import re
 from logging import ERROR, WARNING
 from struct import unpack_from
 
@@ -66,8 +65,6 @@ def _humidity_to_ticks(humidity):
 
 
 class SGP40:
-    HEATER_TEMP = 50.0
-
     def __init__(self, config):
         self.printer = config.get_printer()
         self.name = config.get_name().split()[-1]
@@ -79,6 +76,8 @@ class SGP40:
         self.temp_sensor = config.get("ref_temp_sensor", None)
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
 
+        self.heater_names = config.getlist("heater", ("extruder",))
+        self.heater_temp = config.getfloat("heater_temp", 75.0)
         self._heaters = []
 
         self.raw = self.voc = self.temp = self.humidity = 0
@@ -188,12 +187,7 @@ class SGP40:
 
     def _handle_ready(self):
         pheaters = self.printer.lookup_object("heaters")
-        extruder_pattern = re.compile(r"extruder\d*$")
-        self._heaters = [
-            pheaters.lookup_heater(n)
-            for n in pheaters.get_all_heaters()
-            if extruder_pattern.match(n)
-        ]
+        self._heaters = [pheaters.lookup_heater(n) for n in self.heater_names]
 
     def setup_minmax(self, min_temp, max_temp):
         self.min_temp = min_temp
@@ -218,10 +212,9 @@ class SGP40:
 
         self.step_timer = self.reactor.register_timer(self._handle_step)
 
-    @classmethod
-    def _is_hot(cls, heater, eventtime):
+    def _is_hot(self, heater, eventtime):
         current_temp, target_temp = heater.get_temp(eventtime)
-        return target_temp or current_temp > cls.HEATER_TEMP
+        return target_temp or current_temp > self.heater_temp
 
     def _handle_step(self, eventtime):
         # Check for heating
