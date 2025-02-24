@@ -125,7 +125,7 @@ This will take at least 8 hours and ideally 24 hours.
 > this is when the VOC Index will begin to increase.
 
 1. Cool down the printer
-2. Make sure any air filter fans are turned off.
+2. Turn off any air filter fans.
 3. Open the printer enclosure
 4. (_Optional_) Remove any filter material (e.g. carbon).
    This helps ensure all sensors are exposed to the same air and reach similar calibrations.
@@ -135,11 +135,12 @@ This will take at least 8 hours and ideally 24 hours.
    **This air will serve as reference for the baseline.**
    If you’re not happy breathing it, it isn't clean air.
 6. Close the printer enclosure.
-7. Leave the printer alone for at least 8 hours, and up to 24 hours if possible.
-8. Run the [`CALIBRATE_SGP40`](#CALIBRATE_SGP40) for each configured sensor.
-9. Run the [`SAVE_CONFIG`](https://www.klipper3d.org/G-Codes.html#save_config) command.
-   This will add the baseline values to `printer.cfg`.
-10. Reinstall any filter media removed in step 4.
+7. Run the [`RESET_SGP40`](#RESET_SGP40) command for each configured sensor.
+8. Leave the printer alone for at least 8 hours, and up to 24 hours if possible.
+9. Run the [`CALIBRATE_SGP40`](#CALIBRATE_SGP40) command for each configured sensor.
+10. Run the [`SAVE_CONFIG`](https://www.klipper3d.org/G-Codes.html#save_config) command.
+    This will add the baseline values to `printer.cfg`.
+11. Reinstall any filter media removed in step 4.
 
 The system should now have a good baseline for the sensors.
 
@@ -158,6 +159,11 @@ Store the SGP40 sensor's calibrated baseline.
 `QUERY_SGP40 SENSOR=config_name`:
 Queries the current state of the SGP40 sensor.
 The data displayed on the terminal.
+
+### RESET_SGP40
+
+`RESET_SGP40 SENSOR=config_name`:
+Clears all configuration parameters.
 
 ## Attribution
 
