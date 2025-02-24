@@ -1,4 +1,4 @@
-# Klipper Nevermore
+# Klipper SGP40
 
 This is a [Klipper](https://www.klipper3d.org/) module that provides support for monitoring [VOCs](https://en.wikipedia.org/wiki/Volatile_organic_compound) using the SGP40 sensor.
 
