@@ -83,6 +83,7 @@ class SGP40:
         self.raw = self.voc = self.temp = self.humidity = 0
         self.min_temp = self.max_temp = 0
         self.step_timer = None
+        self._measuring = False
 
         mean = config.getfloat("voc_mean", None)
         stddev = config.getfloat("voc_stddev", None)
@@ -204,10 +205,13 @@ class SGP40:
         return self._gia.sampling_interval
 
     def _init_sgp40(self):
-        self._read_and_check(HEATER_OFF_CMD, read_len=0)
+        self.i2c.i2c_write(HEATER_OFF_CMD)
+        self._wait_ms(50)
 
         # Self test
-        response = self._read_and_check(SELF_TEST_CMD, wait_time_s=0.5)
+        self.i2c.i2c_write(SELF_TEST_CMD)
+        self._wait_ms(500)
+        response = self._read()
         if response[0] != 0xD400:
             logging.error(self._log_message("Self test error"))
 
@@ -223,6 +227,12 @@ class SGP40:
         self._gia.calibrating = not any(
             self._is_hot(h, eventtime) for h in self._heaters
         )
+
+        if self._measuring:
+            # Calculate VOC index
+            response = self._read()
+            self.raw = response[0]
+            self.voc = self._gia.process(self.raw)
 
         # Get reference temperature
         if self.temp_sensor:
@@ -246,44 +256,38 @@ class SGP40:
         else:
             self.humidity = humidity
 
-        # Read sample
+        # Start next measurement
         cmd = (
             MEASURE_RAW_CMD_PREFIX
             + _humidity_to_ticks(self.humidity)
             + _temperature_to_ticks(self.temp)
         )
-        response = self._read_and_check(cmd)
-        self.raw = response[0]
-
-        # Calculate VOC index
-        self.voc = self._gia.process(self.raw)
+        self.i2c.i2c_write(cmd)
+        self._measuring = True
 
         # Schedule next step
         measured_time = self.reactor.monotonic()
         self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
         return measured_time + self._gia.sampling_interval
 
-    def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
-        self.i2c.i2c_write(cmd)
+    def _wait_ms(self, ms):
+        self.reactor.pause(self.reactor.monotonic() + ms / 1000)
 
-        # Wait
-        self.reactor.pause(self.reactor.monotonic() + wait_time_s)
-
+    def _read(self, len=1):
         chunk_size = SGP40_WORD_LEN + 1
-        reply_len = read_len * chunk_size  # CRC every word
+        reply_len = len * chunk_size  # CRC every word
 
         data = []
 
-        if reply_len:
-            params = self.i2c.i2c_read([], reply_len)
-            response = bytearray(params["response"])
+        params = self.i2c.i2c_read([], reply_len)
+        response = bytearray(params["response"])
 
-            for i in range(0, reply_len, chunk_size):
-                if not _check_crc8(
-                    response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
-                ):
-                    logging.warning(self._log_message("Checksum error on read!"))
-                data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
+        for i in range(0, reply_len, chunk_size):
+            if not _check_crc8(
+                response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
+            ):
+                logging.warning(self._log_message("Checksum error on read!"))
+            data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
 
         return data
 
