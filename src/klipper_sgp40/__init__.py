@@ -8,6 +8,7 @@
 import logging
 import math
 import re
+from logging import ERROR, WARNING
 from struct import unpack_from
 
 from .. import bus  # type:ignore
@@ -212,7 +213,7 @@ class SGP40:
         self._wait_ms(500)
         response = self._read()
         if response[0] != 0xD400:
-            logging.error(self._log_message("Self test error"))
+            self._log(ERROR, "Self test error")
 
         self.step_timer = self.reactor.register_timer(self._handle_step)
 
@@ -284,13 +285,13 @@ class SGP40:
             if not _check_crc8(
                 response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
             ):
-                logging.warning(self._log_message("Checksum error on read!"))
+                self._log(WARNING, "Checksum error on read!")
             data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
 
         return data
 
-    def _log_message(self, message):
-        return "SGP40 %s: %s" % (self.name, message)
+    def _log(self, level, msg):
+        logging.log(level, "SGP40 %s: %s" % (self.name, msg))
 
     def get_status(self, eventtime):
         return {
