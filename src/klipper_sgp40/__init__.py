@@ -11,6 +11,7 @@ import re
 from logging import ERROR, WARNING
 from struct import unpack_from
 
+from ...serialhdl import error  # type:ignore
 from .. import bus  # type:ignore
 from .gia import GasIndexAlgorithm
 
@@ -258,11 +259,18 @@ class SGP40:
         )
         self.i2c.i2c_write(cmd)
         self._wait_ms(50)
-        response = self._read()
-        self.raw = response[0]
-
-        # Calculate VOC index
-        self.voc = self._gia.process(self.raw)
+        try:
+            response = self._read()
+        except error as exc:
+            if hasattr(exc, "message") and "i2c_read_response" in exc.message:
+                self._log(WARNING, "Read timeout")
+                self.raw = 0
+                self.voc = 0
+            else:
+                raise exc
+        else:
+            self.raw = response[0]
+            self.voc = self._gia.process(self.raw)
 
         # Schedule next step
         measured_time = self.reactor.monotonic()
