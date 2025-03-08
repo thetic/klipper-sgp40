@@ -61,6 +61,14 @@ sensor_type: SGP40
 #   The name of the temperature sensor to use as reference for humidity
 #   compensation of the VOC raw measurement. If not defined calculations
 #   will assume 50% humidity.
+#heater: extruder
+#   Name of the config section defining any heater that produces VOCs.
+#   If a comma separated list of heater names is provided here, then
+#   calibration will be disabled when any of the given heaters are enabled.
+#   The default is "extruder".
+#heater_temp: 75.0
+#   A temperature (in Celsius) that the heater must rise above before
+#   calibration is disabled. The default is 75 Celsius.
 ```
 
 ### Example
