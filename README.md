@@ -49,10 +49,6 @@ sensor_type: SGP40
 #   https://www.klipper3d.org/Config_Reference.html#common-i2c-settings
 #   for a description of the above parameters.
 #   The default "i2c_speed" is 100000.
-#sampling_interval: 1.0
-#   Time in seconds to wait between sensor measurements.
-#   Values must be between 1.0 and 10.0.
-#   The default "sampling_interval" is 1.0.
 #ref_temp_sensor:
 #   The name of the temperature sensor to use as reference for temperature
 #   compensation of the VOC raw measurement. If not defined calculations
