@@ -122,6 +122,10 @@ class GasIndexAlgorithm:
     def sampling_interval(self):
         return self._sampling_interval
 
+    @property
+    def raw(self):
+        return self._sraw
+
     def process(self, sraw):
         """Calculate the gas index value from the raw sensor value.
 

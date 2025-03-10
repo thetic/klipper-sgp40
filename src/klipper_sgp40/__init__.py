@@ -227,8 +227,9 @@ class SGP40:
         if self._measuring:
             # Calculate VOC index
             response = self._read()
-            self.raw = response[0]
-            self.voc = self._gia.process(self.raw)
+            raw = response[0]
+            self.voc = self._gia.process(raw)
+            self.raw = self._gia.raw
 
         # Get reference temperature
         if self.temp_sensor:
