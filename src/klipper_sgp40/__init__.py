@@ -11,7 +11,8 @@ import re
 from logging import ERROR, WARNING
 from struct import unpack_from
 
-from ...serialhdl import error  # type: ignore
+from serialhdl import error  # type: ignore
+
 from .. import bus  # type: ignore
 from .gia import GasIndexAlgorithm
 
