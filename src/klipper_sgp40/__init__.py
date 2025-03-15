@@ -297,6 +297,7 @@ class SGP40:
             "humidity": self.humidity,
             "gas_raw": self.raw,
             "gas": self.voc,
+            "calibrating": self._gia.calibrating,
         }
 
 
