@@ -7,10 +7,12 @@
 
 import logging
 import math
-import re
+from logging import ERROR, WARNING
 from struct import unpack_from
 
-from .. import bus  # type:ignore
+from serialhdl import error  # type: ignore
+
+from .. import bus  # type: ignore
 from .gia import GasIndexAlgorithm
 
 SGP40_CHIP_ADDR = 0x59
@@ -19,6 +21,27 @@ SGP40_WORD_LEN = 2
 HEATER_OFF_CMD = [0x36, 0x15]
 SELF_TEST_CMD = [0x28, 0x0E]
 MEASURE_RAW_CMD_PREFIX = [0x26, 0x0F]
+
+
+# Hack i2c to attempt more retries.
+def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0):
+    retries = 15
+    retry_delay = 0.010
+    while 1:
+        for cmd in cmds[:-1]:
+            self.serial.raw_send(cmd, minclock, reqclock, cmd_queue)
+        self.serial.raw_send_wait_ack(cmds[-1], minclock, reqclock, cmd_queue)
+        params = self.last_params
+        if params is not None:
+            self.serial.register_response(None, self.name, self.oid)
+            return params
+        if retries <= 0:
+            self.serial.register_response(None, self.name, self.oid)
+            raise error("Unable to obtain '%s' response" % (self.name,))
+        reactor = self.serial.reactor
+        reactor.pause(reactor.monotonic() + retry_delay)
+        retries -= 1
+        retry_delay *= 2.0
 
 
 def _generate_crc(data):
@@ -65,8 +88,6 @@ def _humidity_to_ticks(humidity):
 
 
 class SGP40:
-    HEATER_TEMP = 50.0
-
     def __init__(self, config):
         self.printer = config.get_printer()
         self.name = config.get_name().split()[-1]
@@ -78,11 +99,14 @@ class SGP40:
         self.temp_sensor = config.get("ref_temp_sensor", None)
         self.humidity_sensor = config.get("ref_humidity_sensor", None)
 
+        self.heater_names = config.getlist("heater", ("extruder",))
+        self.heater_temp = config.getfloat("heater_temp", 75.0)
         self._heaters = []
 
         self.raw = self.voc = self.temp = self.humidity = 0
         self.min_temp = self.max_temp = 0
         self.step_timer = None
+        self._measuring = False
 
         mean = config.getfloat("voc_mean", None)
         stddev = config.getfloat("voc_stddev", None)
@@ -182,16 +206,13 @@ class SGP40:
 
         self._init_sgp40()
 
+        self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response
+
         self.reactor.update_timer(self.step_timer, self.reactor.NOW)
 
     def _handle_ready(self):
         pheaters = self.printer.lookup_object("heaters")
-        extruder_pattern = re.compile(r"extruder\d*$")
-        self._heaters = [
-            pheaters.lookup_heater(n)
-            for n in pheaters.get_all_heaters()
-            if extruder_pattern.match(n)
-        ]
+        self._heaters = [pheaters.lookup_heater(n) for n in self.heater_names]
 
     def setup_minmax(self, min_temp, max_temp):
         self.min_temp = min_temp
@@ -204,25 +225,36 @@ class SGP40:
         return self._gia.sampling_interval
 
     def _init_sgp40(self):
-        self._read_and_check(HEATER_OFF_CMD, read_len=0)
+        self.i2c.i2c_write(HEATER_OFF_CMD)
+        self._wait_ms(50)
 
         # Self test
-        response = self._read_and_check(SELF_TEST_CMD, wait_time_s=0.5)
+        self.i2c.i2c_write(SELF_TEST_CMD)
+        self._wait_ms(500)
+        response = self._read()
         if response[0] != 0xD400:
-            logging.error(self._log_message("Self test error"))
+            self._log(ERROR, "Self test error")
 
         self.step_timer = self.reactor.register_timer(self._handle_step)
 
-    @classmethod
-    def _is_hot(cls, heater, eventtime):
-        current_temp, target_temp = heater.get_temp(eventtime)
-        return target_temp or current_temp > cls.HEATER_TEMP
+    def _is_hot(self, eventtime):
+        for heater in self._heaters:
+            current_temp, target_temp = heater.get_temp(eventtime)
+            if target_temp or current_temp > self.heater_temp:
+                return True
+        else:
+            return False
 
     def _handle_step(self, eventtime):
         # Check for heating
-        self._gia.calibrating = not any(
-            self._is_hot(h, eventtime) for h in self._heaters
-        )
+        self._gia.calibrating = not self._is_hot(eventtime)
+
+        if self._measuring:
+            # Calculate VOC index
+            response = self._read()
+            raw = response[0]
+            self.voc = self._gia.process(raw)
+            self.raw = self._gia.raw
 
         # Get reference temperature
         if self.temp_sensor:
@@ -246,49 +278,43 @@ class SGP40:
         else:
             self.humidity = humidity
 
-        # Read sample
+        # Start next measurement
         cmd = (
             MEASURE_RAW_CMD_PREFIX
             + _humidity_to_ticks(self.humidity)
             + _temperature_to_ticks(self.temp)
         )
-        response = self._read_and_check(cmd)
-        self.raw = response[0]
-
-        # Calculate VOC index
-        self.voc = self._gia.process(self.raw)
+        self.i2c.i2c_write(cmd)
+        self._measuring = True
 
         # Schedule next step
         measured_time = self.reactor.monotonic()
         self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
         return measured_time + self._gia.sampling_interval
 
-    def _read_and_check(self, cmd, read_len=1, wait_time_s=0.05):
-        self.i2c.i2c_write(cmd)
+    def _wait_ms(self, ms):
+        self.reactor.pause(self.reactor.monotonic() + ms / 1000)
 
-        # Wait
-        self.reactor.pause(self.reactor.monotonic() + wait_time_s)
-
+    def _read(self, len=1):
         chunk_size = SGP40_WORD_LEN + 1
-        reply_len = read_len * chunk_size  # CRC every word
+        reply_len = len * chunk_size  # CRC every word
 
         data = []
 
-        if reply_len:
-            params = self.i2c.i2c_read([], reply_len)
-            response = bytearray(params["response"])
+        params = self.i2c.i2c_read([], reply_len)
+        response = bytearray(params["response"])
 
-            for i in range(0, reply_len, chunk_size):
-                if not _check_crc8(
-                    response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
-                ):
-                    logging.warning(self._log_message("Checksum error on read!"))
-                data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
+        for i in range(0, reply_len, chunk_size):
+            if not _check_crc8(
+                response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
+            ):
+                self._log(WARNING, "Checksum error on read!")
+            data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
 
         return data
 
-    def _log_message(self, message):
-        return "SGP40 %s: %s" % (self.name, message)
+    def _log(self, level, msg):
+        logging.log(level, "SGP40 %s: %s" % (self.name, msg))
 
     def get_status(self, eventtime):
         return {

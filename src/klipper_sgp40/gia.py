@@ -122,6 +122,10 @@ class GasIndexAlgorithm:
     def sampling_interval(self):
         return self._sampling_interval
 
+    @property
+    def raw(self):
+        return self._sraw
+
     def process(self, sraw):
         """Calculate the gas index value from the raw sensor value.
 
@@ -132,7 +136,7 @@ class GasIndexAlgorithm:
             Calculated gas index value from the raw sensor value.
             Zero during initial blackout period and 1..500 afterwards
         """
-        initial_blackout = 45.0
+        initial_blackout = 5.0
         if self._uptime <= initial_blackout:
             self._uptime = self._uptime + self._sampling_interval
         else:
