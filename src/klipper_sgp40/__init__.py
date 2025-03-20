@@ -110,10 +110,7 @@ class SGP40:
 
         mean = config.getfloat("voc_mean", None)
         stddev = config.getfloat("voc_stddev", None)
-        sampling_interval = config.getfloat(
-            "sampling_interval", default=1.0, minval=1.0, maxval=10.0
-        )
-        self._gia = GasIndexAlgorithm(sampling_interval)
+        self._gia = GasIndexAlgorithm()
         if mean is not None and stddev is not None:
             self._gia.set_states(mean, stddev)
 
