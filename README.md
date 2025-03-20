@@ -1,5 +1,8 @@
 # Klipper SGP40
 
+[![GitHub Release](https://img.shields.io/github/v/release/thetic/klipper-sgp40)](https://github.com/thetic/klipper-sgp40/releases/latest)
+[![Discord](https://img.shields.io/discord/1017933489779245137?logo=Discord)](https://discord.gg/vKTRK5HNUG)
+
 This is a [Klipper](https://www.klipper3d.org/) module that provides support for monitoring [VOCs](https://en.wikipedia.org/wiki/Volatile_organic_compound) using the SGP40 sensor.
 
 ## Installation instructions
