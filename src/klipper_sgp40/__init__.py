@@ -197,7 +197,17 @@ class SGP40:
         if value and value not in reported:
             raise self.printer.config_error("'%s' does not report %s." % (name, value))
 
+    def _non_critical_disconnected(self):
+        # Support Kalico's non-critical MCU feature
+        return (
+            hasattr(self.mcu, "non_critical_disconnected")
+            and self.mcu.non_critical_disconnected
+        )
+
     def _handle_connect(self):
+        if self._non_critical_disconnected():
+            return
+
         if self.temp_sensor:
             self._check_ref_sensor(self.temp_sensor, "temperature")
         if self.humidity_sensor:
@@ -246,6 +256,9 @@ class SGP40:
             return False
 
     def _handle_step(self, eventtime):
+        if self._non_critical_disconnected():
+            return
+
         # Check for heating
         self._gia.calibrating = not self._is_hot(eventtime)
 
