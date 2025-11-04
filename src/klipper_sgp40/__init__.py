@@ -5,6 +5,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+import inspect
 import logging
 import math
 from logging import ERROR, WARNING
@@ -23,8 +24,8 @@ SELF_TEST_CMD = [0x28, 0x0E]
 MEASURE_RAW_CMD_PREFIX = [0x26, 0x0F]
 
 
-# Hack i2c to attempt more retries.
-def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0):
+# This function is for klipper versions older than v0.13.0-159 and kalico
+def _get_response_old(self, cmds, cmd_queue, minclock=0, reqclock=0):
     retries = 15
     retry_delay = 0.010
     while 1:
@@ -42,6 +43,10 @@ def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0):
         reactor.pause(reactor.monotonic() + retry_delay)
         retries -= 1
         retry_delay *= 2.0
+
+
+def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0, retry=True):
+    return _get_response_old(self, cmds, cmd_queue, minclock, reqclock)
 
 
 def _generate_crc(data):
@@ -206,7 +211,14 @@ class SGP40:
 
         self._init_sgp40()
 
-        self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response
+        # Hack i2c to attempt more retries.
+        params = inspect.signature(
+            self.i2c.i2c_read_cmd._xmit_helper.get_response
+        ).parameters
+        if params == inspect.signature(_get_response_old).parameters:
+            self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response_old
+        else:
+            self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response
 
         self.reactor.update_timer(self.step_timer, self.reactor.NOW)
 
