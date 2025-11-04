@@ -1,11 +1,11 @@
 ---
 name: Lint
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   Ruff:
-    runs-on:  ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
