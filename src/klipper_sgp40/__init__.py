@@ -5,9 +5,9 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+import inspect
 import logging
 import math
-import inspect
 from logging import ERROR, WARNING
 from struct import unpack_from
 
@@ -22,17 +22,10 @@ SGP40_WORD_LEN = 2
 HEATER_OFF_CMD = [0x36, 0x15]
 SELF_TEST_CMD = [0x28, 0x0E]
 MEASURE_RAW_CMD_PREFIX = [0x26, 0x0F]
-# Get response key signature for klipper v0.13.0-159-g37ddab223 and greater
-RESPONSE_EXPECTED_KEYS = ["self", "cmds", "cmd_queue", "minclock", "reqclock", "retry"]
 
-# Fixes for klipper v0.13.0-159-g37ddab223 and greater
-def _get_response_new(self, cmds, cmd_queue, minclock=0, reqclock=0, retry=True):
-    return _get_response(self, cmds, cmd_queue, minclock, reqclock)
 
-# Hack i2c to attempt more retries.
-# This function is for klipper versions older than v0.13.0-159 and
-#   kalico as of(10/31/2025)
-def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0):
+# This function is for klipper versions older than v0.13.0-159 and kalico
+def _get_response_old(self, cmds, cmd_queue, minclock=0, reqclock=0):
     retries = 15
     retry_delay = 0.010
     while 1:
@@ -50,6 +43,10 @@ def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0):
         reactor.pause(reactor.monotonic() + retry_delay)
         retries -= 1
         retry_delay *= 2.0
+
+
+def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0, retry=True):
+    return _get_response(self, cmds, cmd_queue, minclock, reqclock)
 
 
 def _generate_crc(data):
@@ -206,10 +203,6 @@ class SGP40:
             raise self.printer.config_error("'%s' does not report %s." % (name, value))
 
     def _handle_connect(self):
-        # Query signature for i2c get_response method
-        response_sig = inspect.signature(self.i2c.i2c_read_cmd._xmit_helper.get_response)
-        response_keys = list(response_sig.parameters.keys())
-
         if self.temp_sensor:
             self._check_ref_sensor(self.temp_sensor, "temperature")
         if self.humidity_sensor:
@@ -218,9 +211,12 @@ class SGP40:
 
         self._init_sgp40()
 
-        # Check if response keys match for Klipper v0.13.0-159-g37ddab223 and greater
-        if response_keys == RESPONSE_EXPECTED_KEYS:
-            self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response_new
+        # Hack i2c to attempt more retries.
+        params = inspect.signature(
+            self.i2c.i2c_read_cmd._xmit_helper.get_response
+        ).parameters
+        if params == inspect.signature(_get_response_old).parameters:
+            self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response_old
         else:
             self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response
 
