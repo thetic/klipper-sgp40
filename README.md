@@ -2,6 +2,16 @@
 
 This is a [Klipper](https://www.klipper3d.org/) module that provides support for monitoring [VOCs](https://en.wikipedia.org/wiki/Volatile_organic_compound) using the SGP40 sensor.
 
+## Requirements
+
+This module requires:
+
+- **Klipper**: v0.13.0-159 or newer
+- **Kalico**: commit `fb7b58f` (2026-01-22) or newer
+
+These versions include improved I2C retry logic and NACK handling that are essential for reliable sensor communication.
+Older versions are no longer supported.
+
 ## Installation instructions
 
 The module can be installed into a existing Klipper installation with an install script.
