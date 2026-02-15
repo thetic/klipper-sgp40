@@ -5,13 +5,10 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
-import inspect
 import logging
 import math
 from logging import ERROR, WARNING
 from struct import unpack_from
-
-from serialhdl import error  # type: ignore
 
 from .. import bus  # type: ignore
 from .gia import GasIndexAlgorithm
@@ -22,31 +19,6 @@ SGP40_WORD_LEN = 2
 HEATER_OFF_CMD = [0x36, 0x15]
 SELF_TEST_CMD = [0x28, 0x0E]
 MEASURE_RAW_CMD_PREFIX = [0x26, 0x0F]
-
-
-# This function is for klipper versions older than v0.13.0-159 and kalico
-def _get_response_old(self, cmds, cmd_queue, minclock=0, reqclock=0):
-    retries = 15
-    retry_delay = 0.010
-    while 1:
-        for cmd in cmds[:-1]:
-            self.serial.raw_send(cmd, minclock, reqclock, cmd_queue)
-        self.serial.raw_send_wait_ack(cmds[-1], minclock, reqclock, cmd_queue)
-        params = self.last_params
-        if params is not None:
-            self.serial.register_response(None, self.name, self.oid)
-            return params
-        if retries <= 0:
-            self.serial.register_response(None, self.name, self.oid)
-            raise error("Unable to obtain '%s' response" % (self.name,))
-        reactor = self.serial.reactor
-        reactor.pause(reactor.monotonic() + retry_delay)
-        retries -= 1
-        retry_delay *= 2.0
-
-
-def _get_response(self, cmds, cmd_queue, minclock=0, reqclock=0, retry=True):
-    return _get_response_old(self, cmds, cmd_queue, minclock, reqclock)
 
 
 def _generate_crc(data):
@@ -211,15 +183,6 @@ class SGP40:
 
         self._init_sgp40()
 
-        # Hack i2c to attempt more retries.
-        params = inspect.signature(
-            self.i2c.i2c_read_cmd._xmit_helper.get_response
-        ).parameters
-        if params == inspect.signature(_get_response_old).parameters:
-            self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response_old
-        else:
-            self.i2c.i2c_read_cmd._xmit_helper.get_response = _get_response
-
         self.reactor.update_timer(self.step_timer, self.reactor.NOW)
 
     def _handle_ready(self):
@@ -267,6 +230,8 @@ class SGP40:
             raw = response[0]
             self.voc = self._gia.process(raw)
             self.raw = self._gia.raw
+            # Small delay after read to prevent I2C bus conflicts
+            self._wait_ms(20)
 
         # Get reference temperature
         if self.temp_sensor:
