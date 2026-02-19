@@ -10,7 +10,7 @@ import math
 from logging import ERROR, WARNING
 from struct import unpack_from
 
-from .. import bus  # type: ignore
+from .. import bus, mcu  # type: ignore
 from .gia import GasIndexAlgorithm
 
 SGP40_CHIP_ADDR = 0x59
@@ -225,13 +225,18 @@ class SGP40:
         self._gia.calibrating = not self._is_hot(eventtime)
 
         if self._measuring:
-            # Calculate VOC index
-            response = self._read()
-            raw = response[0]
-            self.voc = self._gia.process(raw)
-            self.raw = self._gia.raw
-            # Small delay after read to prevent I2C bus conflicts
-            self._wait_ms(20)
+            try:
+                # Calculate VOC index
+                response = self._read()
+                raw = response[0]
+                self.voc = self._gia.process(raw)
+                self.raw = self._gia.raw
+                # Small delay after read to prevent I2C bus conflicts
+                self._wait_ms(20)
+            except mcu.error as e:
+                self._log(WARNING, "Measurement read failed: %s" % (str(e),))
+                # Keep previous values and continue measurement cycle
+                self._measuring = False
 
         # Get reference temperature
         if self.temp_sensor:
@@ -255,14 +260,18 @@ class SGP40:
         else:
             self.humidity = humidity
 
-        # Start next measurement
-        cmd = (
-            MEASURE_RAW_CMD_PREFIX
-            + _humidity_to_ticks(self.humidity)
-            + _temperature_to_ticks(self.temp)
-        )
-        self.i2c.i2c_write(cmd)
-        self._measuring = True
+        try:
+            # Start next measurement
+            cmd = (
+                MEASURE_RAW_CMD_PREFIX
+                + _humidity_to_ticks(self.humidity)
+                + _temperature_to_ticks(self.temp)
+            )
+            self.i2c.i2c_write(cmd)
+            self._measuring = True
+        except mcu.error as e:
+            self._log(WARNING, "Measurement write failed: %s" % (str(e),))
+            self._measuring = False
 
         # Schedule next step
         measured_time = self.reactor.monotonic()
