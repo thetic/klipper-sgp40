@@ -10,7 +10,7 @@ import math
 from logging import ERROR, WARNING
 from struct import unpack_from
 
-from .. import bus, mcu  # type: ignore
+from .. import bus  # type: ignore
 from .gia import GasIndexAlgorithm
 
 SGP40_CHIP_ADDR = 0x59
@@ -233,8 +233,8 @@ class SGP40:
                 self.raw = self._gia.raw
                 # Small delay after read to prevent I2C bus conflicts
                 self._wait_ms(20)
-            except mcu.error as e:
-                self._log(WARNING, "Measurement read failed: %s" % (str(e),))
+            except Exception:
+                logging.exception("SGP40: Error reading data")
                 # Keep previous values and continue measurement cycle
                 self._measuring = False
 
@@ -269,8 +269,8 @@ class SGP40:
             )
             self.i2c.i2c_write(cmd)
             self._measuring = True
-        except mcu.error as e:
-            self._log(WARNING, "Measurement write failed: %s" % (str(e),))
+        except Exception:
+            logging.exception("SGP40: Error writing data")
             self._measuring = False
 
         # Schedule next step
