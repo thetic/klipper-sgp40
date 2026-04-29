@@ -71,6 +71,13 @@ sensor_type: SGP40
 #   The name of the temperature sensor to use as reference for humidity
 #   compensation of the VOC raw measurement. If not defined calculations
 #   will assume 50% humidity.
+#
+#   WARNING: Any I2C sensor configured as ref_temp_sensor or
+#   ref_humidity_sensor will have its I2C error handling modified so that
+#   transient NACK errors are logged rather than triggering a printer
+#   shutdown. These sensors MUST NOT be used for heater control, as this
+#   modification would prevent a hardware fault from safely shutting down
+#   the printer.
 #heater: extruder
 #   Name of the config section defining any heater that produces VOCs.
 #   If a comma separated list of heater names is provided here, then
