@@ -174,6 +174,9 @@ class SGP40:
         if value and value not in reported:
             raise self.printer.config_error("'%s' does not report %s." % (name, value))
 
+        if hasattr(sensor, "i2c"):
+            self._patch_i2c(sensor.i2c)
+
     def _handle_connect(self):
         if self.temp_sensor:
             self._check_ref_sensor(self.temp_sensor, "temperature")
@@ -181,20 +184,19 @@ class SGP40:
             # BME280 does not start reporting humidity until after connection.
             self._check_ref_sensor(self.humidity_sensor)
 
-        self._patch_i2c()
+        self._patch_i2c(self.i2c)
         self._init_sgp40()
 
         self.reactor.update_timer(self.step_timer, self.reactor.NOW)
 
-    def _patch_i2c(self):
+    def _patch_i2c(self, i2c):
         # bus.py's i2c_transfer() calls invoke_shutdown() on any non-SUCCESS
         # I2C status, crashing the printer on transient NACK errors. Patch
         # this device's transfer method to raise command_error instead so our
         # retry logic can handle it without taking down the printer.
-        if self.i2c.i2c_transfer_cmd is None:
+        if i2c.i2c_transfer_cmd is None:
             return  # Legacy firmware path already raises command_error natively
         command_error = self.printer.command_error
-        i2c = self.i2c
 
         def _safe_transfer(write, read_len=0, minclock=0, reqclock=0, retry=True):
             if i2c.mcu.is_fileoutput():
