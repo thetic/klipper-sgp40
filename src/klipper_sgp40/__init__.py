@@ -194,8 +194,8 @@ class SGP40:
         # I2C status, crashing the printer on transient NACK errors. Patch
         # this device's transfer method to raise command_error instead so our
         # retry logic can handle it without taking down the printer.
-        if i2c.i2c_transfer_cmd is None:
-            return  # Legacy firmware path already raises command_error natively
+        if getattr(i2c, "i2c_transfer_cmd", None) is None:
+            return  # Legacy firmware / Kalico path already raises command_error natively
         command_error = self.printer.command_error
 
         def _safe_transfer(write, read_len=0, minclock=0, reqclock=0, retry=True):
@@ -314,7 +314,7 @@ class SGP40:
         last_error = None
         while retries > 0 and params is None:
             try:
-                params = self.i2c.i2c_read([], reply_len, retry=False)
+                params = self.i2c.i2c_read([], reply_len)
             except self.printer.command_error as e:
                 last_error = e
                 self._wait_ms(500)
