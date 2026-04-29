@@ -181,9 +181,42 @@ class SGP40:
             # BME280 does not start reporting humidity until after connection.
             self._check_ref_sensor(self.humidity_sensor)
 
+        self._patch_i2c()
         self._init_sgp40()
 
         self.reactor.update_timer(self.step_timer, self.reactor.NOW)
+
+    def _patch_i2c(self):
+        # bus.py's i2c_transfer() calls invoke_shutdown() on any non-SUCCESS
+        # I2C status, crashing the printer on transient NACK errors. Patch
+        # this device's transfer method to raise command_error instead so our
+        # retry logic can handle it without taking down the printer.
+        if self.i2c.i2c_transfer_cmd is None:
+            return  # Legacy firmware path already raises command_error natively
+        command_error = self.printer.command_error
+        i2c = self.i2c
+
+        def _safe_transfer(write, read_len=0, minclock=0, reqclock=0, retry=True):
+            if i2c.mcu.is_fileoutput():
+                i2c.i2c_transfer_cmd.send(
+                    [i2c.oid, write, read_len], minclock=minclock, reqclock=reqclock
+                )
+                return
+            param = i2c.i2c_transfer_cmd.send(
+                [i2c.oid, write, read_len],
+                minclock=minclock,
+                reqclock=reqclock,
+                retry=retry,
+            )
+            status = param["i2c_bus_status"]
+            if status == "SUCCESS":
+                return param
+            raise command_error(
+                "MCU '%s' I2C request to addr %i reports error %s"
+                % (i2c.mcu.get_name(), i2c.i2c_address, status)
+            )
+
+        i2c.i2c_transfer = _safe_transfer
 
     def _handle_ready(self):
         pheaters = self.printer.lookup_object("heaters")
@@ -221,73 +254,80 @@ class SGP40:
             return False
 
     def _handle_step(self, eventtime):
-        # Check for heating
-        self._gia.calibrating = not self._is_hot(eventtime)
+        try:
+            self._gia.calibrating = not self._is_hot(eventtime)
 
-        if self._measuring:
-            # Calculate VOC index
-            response = self._read()
-            raw = response[0]
-            self.voc = self._gia.process(raw)
-            self.raw = self._gia.raw
-            # Small delay after read to prevent I2C bus conflicts
-            self._wait_ms(20)
+            if self._measuring:
+                response = self._read()
+                raw = response[0]
+                self.voc = self._gia.process(raw)
+                self.raw = self._gia.raw
+                self._wait_ms(20)
 
-        # Get reference temperature
-        if self.temp_sensor:
-            self.temp = self.printer.lookup_object(
-                "{}".format(self.temp_sensor)
-            ).get_status(eventtime)["temperature"]
-        else:
-            # Temperatures defaults to 25C
-            self.temp = 25
+            if self.temp_sensor:
+                self.temp = self.printer.lookup_object(
+                    "{}".format(self.temp_sensor)
+                ).get_status(eventtime)["temperature"]
+            else:
+                self.temp = 25
 
-        # Get reference humidity
-        humidity = None
-        if self.humidity_sensor:
-            humidity = (
-                self.printer.lookup_object("{}".format(self.humidity_sensor))
-                .get_status(eventtime)
-                .get("humidity")
+            humidity = None
+            if self.humidity_sensor:
+                humidity = (
+                    self.printer.lookup_object("{}".format(self.humidity_sensor))
+                    .get_status(eventtime)
+                    .get("humidity")
+                )
+            if humidity is None:
+                self.humidity = _estimate_humidity(self.temp)
+            else:
+                self.humidity = humidity
+
+            cmd = (
+                MEASURE_RAW_CMD_PREFIX
+                + _humidity_to_ticks(self.humidity)
+                + _temperature_to_ticks(self.temp)
             )
-        if humidity is None:
-            self.humidity = _estimate_humidity(self.temp)
-        else:
-            self.humidity = humidity
+            self.i2c.i2c_write(cmd)
+            self._measuring = True
 
-        # Start next measurement
-        cmd = (
-            MEASURE_RAW_CMD_PREFIX
-            + _humidity_to_ticks(self.humidity)
-            + _temperature_to_ticks(self.temp)
-        )
-        self.i2c.i2c_write(cmd)
-        self._measuring = True
-
-        # Schedule next step
-        measured_time = self.reactor.monotonic()
-        self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
-        return measured_time + self._gia.sampling_interval
+            measured_time = self.reactor.monotonic()
+            self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
+            return measured_time + self._gia.sampling_interval
+        except Exception:
+            logging.exception("SGP40 %s: Error reading data" % self.name)
+            self.temp = self.humidity = 0.0
+            self._measuring = False
+            return self.reactor.monotonic() + self._gia.sampling_interval * 5
 
     def _wait_ms(self, ms):
         self.reactor.pause(self.reactor.monotonic() + ms / 1000)
 
-    def _read(self, len=1):
+    def _read(self, count=1):
         chunk_size = SGP40_WORD_LEN + 1
-        reply_len = len * chunk_size  # CRC every word
+        reply_len = count * chunk_size
 
-        data = []
+        retries = 5
+        params = None
+        last_error = None
+        while retries > 0 and params is None:
+            try:
+                params = self.i2c.i2c_read([], reply_len, retry=False)
+            except self.printer.command_error as e:
+                last_error = e
+                self._wait_ms(500)
+                retries -= 1
+        if params is None:
+            raise last_error
 
-        params = self.i2c.i2c_read([], reply_len)
         response = bytearray(params["response"])
-
+        data = []
         for i in range(0, reply_len, chunk_size):
             if not _check_crc8(
                 response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
             ):
                 self._log(WARNING, "Checksum error on read!")
             data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
-
         return data
 
     def _log(self, level, msg):
