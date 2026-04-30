@@ -195,7 +195,7 @@ class SGP40:
         # this device's transfer method to raise command_error instead so our
         # retry logic can handle it without taking down the printer.
         if getattr(i2c, "i2c_transfer_cmd", None) is None:
-            return  # Legacy firmware / Kalico path already raises command_error natively
+            return  # Kalico, or Klipper with post-#7013 MCU firmware: already raises command_error natively
         command_error = self.printer.command_error
 
         def _safe_transfer(write, read_len=0, minclock=0, reqclock=0, retry=True):
