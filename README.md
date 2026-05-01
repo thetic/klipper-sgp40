@@ -5,7 +5,6 @@ This is a [Klipper](https://www.klipper3d.org/) module that provides support for
 ## Requirements
 
 - **Klipper**: v0.13.0-159 or newer
-- **Kalico**: commit `fb7b58f` (2026-01-22) or newer
 
 ## Installation instructions
 

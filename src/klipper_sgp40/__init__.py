@@ -191,34 +191,40 @@ class SGP40:
 
     def _patch_i2c(self, i2c):
         # bus.py's i2c_transfer() calls invoke_shutdown() on any non-SUCCESS
-        # I2C status, crashing the printer on transient NACK errors. Patch
-        # this device's transfer method to raise command_error instead so our
-        # retry logic can handle it without taking down the printer.
-        if getattr(i2c, "i2c_transfer_cmd", None) is None:
+        # I2C status, crashing the printer on transient NACK errors.
+        #
+        # We wrap i2c_transfer_cmd (a plain data attribute) so that its send()
+        # raises command_error for non-SUCCESS statuses. The original
+        # i2c_transfer() method still runs, but the exception propagates before
+        # it can reach invoke_shutdown().  Replacing the cmd object is more
+        # reliable than patching the i2c_transfer method because Python method
+        # descriptors can prevent instance-attribute method patches from taking
+        # effect in some call paths.
+        original_cmd = getattr(i2c, "i2c_transfer_cmd", None)
+        if original_cmd is None:
             return  # Kalico, or Klipper with post-#7013 MCU firmware: already raises command_error natively
         command_error = self.printer.command_error
+        mcu = i2c.mcu
+        mcu_name = mcu.get_name()
+        i2c_address = i2c.i2c_address
 
-        def _safe_transfer(write, read_len=0, minclock=0, reqclock=0, retry=True):
-            if i2c.mcu.is_fileoutput():
-                i2c.i2c_transfer_cmd.send(
-                    [i2c.oid, write, read_len], minclock=minclock, reqclock=reqclock
+        class _SafeTransferCmd:
+            def send(self, data=(), minclock=0, reqclock=0, retry=True):
+                if mcu.is_fileoutput():
+                    original_cmd.send(data, minclock=minclock, reqclock=reqclock)
+                    return
+                param = original_cmd.send(
+                    data, minclock=minclock, reqclock=reqclock, retry=retry
                 )
-                return
-            param = i2c.i2c_transfer_cmd.send(
-                [i2c.oid, write, read_len],
-                minclock=minclock,
-                reqclock=reqclock,
-                retry=retry,
-            )
-            status = param["i2c_bus_status"]
-            if status == "SUCCESS":
-                return param
-            raise command_error(
-                "MCU '%s' I2C request to addr %i reports error %s"
-                % (i2c.mcu.get_name(), i2c.i2c_address, status)
-            )
+                status = param["i2c_bus_status"]
+                if status == "SUCCESS":
+                    return param
+                raise command_error(
+                    "MCU '%s' I2C request to addr %i reports error %s"
+                    % (mcu_name, i2c_address, status)
+                )
 
-        i2c.i2c_transfer = _safe_transfer
+        i2c.i2c_transfer_cmd = _SafeTransferCmd()
 
     def _handle_ready(self):
         pheaters = self.printer.lookup_object("heaters")
