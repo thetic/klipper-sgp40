@@ -279,51 +279,49 @@ class SGP40:
             return False
 
     def _handle_step(self, eventtime):
-        try:
-            self._gia.calibrating = not self._is_hot(eventtime)
+        self._gia.calibrating = not self._is_hot(eventtime)
 
+        if self.temp_sensor:
+            self.temp = self.printer.lookup_object(
+                "{}".format(self.temp_sensor)
+            ).get_status(eventtime)["temperature"]
+        else:
+            self.temp = 25
+
+        humidity = None
+        if self.humidity_sensor:
+            humidity = (
+                self.printer.lookup_object("{}".format(self.humidity_sensor))
+                .get_status(eventtime)
+                .get("humidity")
+            )
+        self.humidity = (
+            humidity if humidity is not None else _estimate_humidity(self.temp)
+        )
+
+        cmd = (
+            MEASURE_RAW_CMD_PREFIX
+            + _humidity_to_ticks(self.humidity)
+            + _temperature_to_ticks(self.temp)
+        )
+        try:
             if self._measuring:
                 response = self._read()
                 raw = response[0]
                 self.voc = self._gia.process(raw)
                 self.raw = self._gia.raw
                 self._wait_ms(20)
-
-            if self.temp_sensor:
-                self.temp = self.printer.lookup_object(
-                    "{}".format(self.temp_sensor)
-                ).get_status(eventtime)["temperature"]
-            else:
-                self.temp = 25
-
-            humidity = None
-            if self.humidity_sensor:
-                humidity = (
-                    self.printer.lookup_object("{}".format(self.humidity_sensor))
-                    .get_status(eventtime)
-                    .get("humidity")
-                )
-            if humidity is None:
-                self.humidity = _estimate_humidity(self.temp)
-            else:
-                self.humidity = humidity
-
-            cmd = (
-                MEASURE_RAW_CMD_PREFIX
-                + _humidity_to_ticks(self.humidity)
-                + _temperature_to_ticks(self.temp)
-            )
             self.i2c.i2c_write(cmd)
             self._measuring = True
-
-            measured_time = self.reactor.monotonic()
-            self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
-            return measured_time + self._gia.sampling_interval
         except Exception:
             logging.exception("SGP40 %s: Error during measurement step" % self.name)
             self.temp = self.humidity = 0.0
             self._measuring = False
             return self.reactor.monotonic() + self._gia.sampling_interval * 5
+
+        measured_time = self.reactor.monotonic()
+        self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
+        return measured_time + self._gia.sampling_interval
 
     def _wait_ms(self, ms):
         self.reactor.pause(self.reactor.monotonic() + ms / 1000)
