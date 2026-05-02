@@ -327,20 +327,7 @@ class SGP40:
     def _read(self, count=1):
         chunk_size = SGP40_WORD_LEN + 1
         reply_len = count * chunk_size
-
-        retries = 5
-        params = None
-        last_error = None
-        while retries > 0 and params is None:
-            try:
-                params = self.i2c.i2c_read([], reply_len)
-            except self.printer.command_error as e:
-                last_error = e
-                self._wait_ms(500)
-                retries -= 1
-        if params is None:
-            raise last_error
-
+        params = self.i2c.i2c_read([], reply_len)
         response = bytearray(params["response"])
         data = []
         for i in range(0, reply_len, chunk_size):
