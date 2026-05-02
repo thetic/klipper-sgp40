@@ -316,7 +316,7 @@ class SGP40:
             self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
             return measured_time + self._gia.sampling_interval
         except Exception:
-            logging.exception("SGP40 %s: Error reading data" % self.name)
+            logging.exception("SGP40 %s: Error during measurement step" % self.name)
             self.temp = self.humidity = 0.0
             self._measuring = False
             return self.reactor.monotonic() + self._gia.sampling_interval * 5
