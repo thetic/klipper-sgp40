@@ -82,6 +82,12 @@ sensor_type: SGP40
 #   calibration is disabled. The default is 75 Celsius.
 ```
 
+> [!WARNING]
+> Any I2C sensor configured as `ref_temp_sensor` or `ref_humidity_sensor` will have its I2C
+> error handling modified so that transient NACK errors are logged rather than triggering a
+> printer shutdown. These sensors **must not** be used for heater control — this modification
+> would prevent a hardware fault from safely shutting down the printer.
+
 ### Example
 
 The following is an example using a [Nevermore PCB](https://github.com/xbst/Nevermore-PCB/tree/master)
