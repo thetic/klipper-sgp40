@@ -212,6 +212,10 @@ class SGP40:
             self._check_ref_sensor(self.humidity_sensor)
 
         self._patch_i2c(self.i2c)
+        # Intentionally no try/except: the sensor must respond at startup.
+        # Transient NACKs during the measurement loop are handled in
+        # _handle_step, but a sensor that is absent or unresponsive at connect
+        # time should be a hard failure.
         self._init_sgp40()
 
         self.reactor.update_timer(self.step_timer, self.reactor.NOW)
