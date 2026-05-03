@@ -111,6 +111,7 @@ class SGP40:
         self.min_temp = self.max_temp = 0
         self.step_timer = None
         self._measuring = False
+        self._ref_sensors = []
 
         mean = config.getfloat("voc_mean", None)
         stddev = config.getfloat("voc_stddev", None)
@@ -203,6 +204,8 @@ class SGP40:
 
         if hasattr(sensor, "i2c"):
             self._patch_i2c(sensor.i2c)
+            if hasattr(sensor, "sample_timer") and sensor not in self._ref_sensors:
+                self._ref_sensors.append(sensor)
 
     def _handle_connect(self):
         if self.temp_sensor:
@@ -298,6 +301,16 @@ class SGP40:
         self.humidity = (
             humidity if humidity is not None else _estimate_humidity(self.temp)
         )
+
+        # BME280 sets temp/humidity to 0 and returns reactor.NEVER on I2C error,
+        # permanently stopping its sample timer.  Reschedule it so it can recover
+        # on its own after a transient NACK without requiring a printer restart.
+        for sensor in self._ref_sensors:
+            if getattr(sensor, "temp", None) == 0.0:
+                self.reactor.update_timer(
+                    sensor.sample_timer,
+                    self.reactor.monotonic() + self._gia.sampling_interval,
+                )
 
         cmd = (
             MEASURE_RAW_CMD_PREFIX
