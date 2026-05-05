@@ -126,6 +126,12 @@ class GasIndexAlgorithm:
     def raw(self):
         return self._sraw
 
+    def apply_variance_floor(self, other):
+        """Raise this instance's variance std to at least the other's value."""
+        if other._mve_std > self._mve_std:
+            self._mve_std = other._mve_std
+            self._mox_set_parameters(self._mve_std, self._mve_offset_mean)
+
     def process(self, sraw):
         """Calculate the gas index value from the raw sensor value.
 
