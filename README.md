@@ -80,6 +80,10 @@ sensor_type: SGP40
 #heater_temp: 75.0
 #   A temperature (in Celsius) that the heater must rise above before
 #   calibration is disabled. The default is 75 Celsius.
+#sync_with:
+#   The name of another SGP40 sensor to synchronize with. When two sensors
+#   are paired (e.g. intake and exhaust), this keeps their VOC index readings
+#   on a comparable scale. Set to the other sensor's name on both sensors.
 ```
 
 > [!WARNING]
@@ -119,6 +123,7 @@ i2c_mcu: nevermore
 i2c_bus: i2c1_PB8_PB9
 ref_temp_sensor: bme280 BME_OUT
 ref_humidity_sensor: bme280 BME_OUT
+sync_with: SGP_IN
 
 [temperature_sensor SGP_IN]
 sensor_type: SGP40
@@ -126,6 +131,7 @@ i2c_mcu: nevermore
 i2c_bus: i2c2_PB10_PB11
 ref_temp_sensor: bme280 BME_IN
 ref_humidity_sensor: bme280 BME_IN
+sync_with: SGP_OUT
 ```
 
 ## Calibration
