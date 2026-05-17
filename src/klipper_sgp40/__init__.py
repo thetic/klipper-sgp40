@@ -94,6 +94,9 @@ class SGP40:
         if mean is not None and stddev is not None:
             self._gia.set_states(mean, stddev)
 
+        self._sync_peer_name = config.get("sync_with", None)
+        self._sync_peer = None
+
         self.printer.add_object("sgp40 " + self.name, self)
         if self.printer.get_start_args().get("debugoutput") is not None:
             return
@@ -175,6 +178,11 @@ class SGP40:
             raise self.printer.config_error("'%s' does not report %s." % (name, value))
 
     def _handle_connect(self):
+        if self._sync_peer_name:
+            self._sync_peer = self.printer.lookup_object(
+                "sgp40 " + self._sync_peer_name
+            )
+
         if self.temp_sensor:
             self._check_ref_sensor(self.temp_sensor, "temperature")
         if self.humidity_sensor:
@@ -228,6 +236,8 @@ class SGP40:
             # Calculate VOC index
             response = self._read()
             raw = response[0]
+            if self._sync_peer is not None:
+                self._gia.apply_variance_floor(self._sync_peer._gia)
             self.voc = self._gia.process(raw)
             self.raw = self._gia.raw
             # Small delay after read to prevent I2C bus conflicts
