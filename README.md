@@ -6,6 +6,9 @@ This is a [Klipper](https://www.klipper3d.org/) module that provides support for
 
 - **Klipper**: v0.13.0-159 or newer
 
+> [!NOTE]
+> This module should work in [Kalico](https://docs.kalico.gg/), but expect periodic printer shutdowns from I2C disconnections.
+
 ## Installation instructions
 
 The module can be installed into a existing Klipper installation with an install script.
