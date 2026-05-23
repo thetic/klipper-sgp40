@@ -16,6 +16,33 @@ from .gia import GasIndexAlgorithm
 SGP40_CHIP_ADDR = 0x59
 SGP40_WORD_LEN = 2
 
+
+class _SafeTransferCmd:
+    # Wraps i2c_transfer_cmd.send() to raise command_error instead of calling
+    # invoke_shutdown() on non-SUCCESS I2C statuses.
+    def __init__(self, original_cmd, command_error, mcu, mcu_name, i2c_address):
+        self._original_cmd = original_cmd
+        self._command_error = command_error
+        self._mcu = mcu
+        self._mcu_name = mcu_name
+        self._i2c_address = i2c_address
+
+    def send(self, data=(), minclock=0, reqclock=0, retry=True):
+        if self._mcu.is_fileoutput():
+            self._original_cmd.send(data, minclock=minclock, reqclock=reqclock)
+            return
+        param = self._original_cmd.send(
+            data, minclock=minclock, reqclock=reqclock, retry=retry
+        )
+        status = param["i2c_bus_status"]
+        if status == "SUCCESS":
+            return param
+        raise self._command_error(
+            "MCU '%s' I2C request to addr %i reports error %s"
+            % (self._mcu_name, self._i2c_address, status)
+        )
+
+
 HEATER_OFF_CMD = [0x36, 0x15]
 SELF_TEST_CMD = [0x28, 0x0E]
 MEASURE_RAW_CMD_PREFIX = [0x26, 0x0F]
@@ -84,6 +111,7 @@ class SGP40:
         self.min_temp = self.max_temp = 0
         self.step_timer = None
         self._measuring = False
+        self._ref_sensors = []
 
         mean = config.getfloat("voc_mean", None)
         stddev = config.getfloat("voc_stddev", None)
@@ -177,6 +205,11 @@ class SGP40:
         if value and value not in reported:
             raise self.printer.config_error("'%s' does not report %s." % (name, value))
 
+        if hasattr(sensor, "i2c"):
+            self._patch_i2c(sensor.i2c)
+            if hasattr(sensor, "sample_timer") and sensor not in self._ref_sensors:
+                self._ref_sensors.append(sensor)
+
     def _handle_connect(self):
         if self._sync_peer_name:
             self._sync_peer = self.printer.lookup_object(
@@ -189,9 +222,37 @@ class SGP40:
             # BME280 does not start reporting humidity until after connection.
             self._check_ref_sensor(self.humidity_sensor)
 
+        self._patch_i2c(self.i2c)
+        # Intentionally no try/except: the sensor must respond at startup.
+        # Transient NACKs during the measurement loop are handled in
+        # _handle_step, but a sensor that is absent or unresponsive at connect
+        # time should be a hard failure.
         self._init_sgp40()
 
         self.reactor.update_timer(self.step_timer, self.reactor.NOW)
+
+    def _patch_i2c(self, i2c):
+        # bus.py's i2c_transfer() calls invoke_shutdown() on any non-SUCCESS
+        # I2C status, crashing the printer on transient NACK errors.
+        #
+        # We wrap i2c_transfer_cmd (a plain data attribute) so that its send()
+        # raises command_error for non-SUCCESS statuses. The original
+        # i2c_transfer() method still runs, but the exception propagates before
+        # it can reach invoke_shutdown().  Replacing the cmd object is more
+        # reliable than patching the i2c_transfer method because Python method
+        # descriptors can prevent instance-attribute method patches from taking
+        # effect in some call paths.
+        original_cmd = getattr(i2c, "i2c_transfer_cmd", None)
+        if original_cmd is None or isinstance(original_cmd, _SafeTransferCmd):
+            return  # already patched, or Kalico/post-#7013 firmware (raises command_error natively)
+        mcu = i2c.mcu
+        i2c.i2c_transfer_cmd = _SafeTransferCmd(
+            original_cmd,
+            self.printer.command_error,
+            mcu,
+            mcu.get_name(),
+            i2c.i2c_address,
+        )
 
     def _handle_ready(self):
         pheaters = self.printer.lookup_object("heaters")
@@ -229,30 +290,15 @@ class SGP40:
             return False
 
     def _handle_step(self, eventtime):
-        # Check for heating
         self._gia.calibrating = not self._is_hot(eventtime)
 
-        if self._measuring:
-            # Calculate VOC index
-            response = self._read()
-            raw = response[0]
-            if self._sync_peer is not None:
-                self._gia.apply_variance_floor(self._sync_peer._gia)
-            self.voc = self._gia.process(raw)
-            self.raw = self._gia.raw
-            # Small delay after read to prevent I2C bus conflicts
-            self._wait_ms(20)
-
-        # Get reference temperature
         if self.temp_sensor:
             self.temp = self.printer.lookup_object(
                 "{}".format(self.temp_sensor)
             ).get_status(eventtime)["temperature"]
         else:
-            # Temperatures defaults to 25C
             self.temp = 25
 
-        # Get reference humidity
         humidity = None
         if self.humidity_sensor:
             humidity = (
@@ -260,21 +306,42 @@ class SGP40:
                 .get_status(eventtime)
                 .get("humidity")
             )
-        if humidity is None:
-            self.humidity = _estimate_humidity(self.temp)
-        else:
-            self.humidity = humidity
+        self.humidity = (
+            humidity if humidity is not None else _estimate_humidity(self.temp)
+        )
 
-        # Start next measurement
+        # BME280 sets temp/humidity to 0 and returns reactor.NEVER on I2C error,
+        # permanently stopping its sample timer.  Reschedule it so it can recover
+        # on its own after a transient NACK without requiring a printer restart.
+        for sensor in self._ref_sensors:
+            if getattr(sensor, "temp", None) == 0.0:
+                self.reactor.update_timer(
+                    sensor.sample_timer,
+                    self.reactor.monotonic() + self._gia.sampling_interval,
+                )
+
         cmd = (
             MEASURE_RAW_CMD_PREFIX
             + _humidity_to_ticks(self.humidity)
             + _temperature_to_ticks(self.temp)
         )
-        self.i2c.i2c_write(cmd)
-        self._measuring = True
+        try:
+            if self._measuring:
+                response = self._read()
+                raw = response[0]
+                if self._sync_peer is not None:
+                    self._gia.apply_variance_floor(self._sync_peer._gia)
+                self.voc = self._gia.process(raw)
+                self.raw = self._gia.raw
+                self._wait_ms(20)
+            self.i2c.i2c_write(cmd)
+            self._measuring = True
+        except Exception:
+            logging.exception("SGP40 %s: Error during measurement step" % self.name)
+            self.temp = self.humidity = 0.0
+            self._measuring = False
+            return self.reactor.monotonic() + self._gia.sampling_interval * 5
 
-        # Schedule next step
         measured_time = self.reactor.monotonic()
         self._callback(self.mcu.estimated_print_time(measured_time), self.voc)
         return measured_time + self._gia.sampling_interval
@@ -282,22 +349,18 @@ class SGP40:
     def _wait_ms(self, ms):
         self.reactor.pause(self.reactor.monotonic() + ms / 1000)
 
-    def _read(self, len=1):
+    def _read(self, count=1):
         chunk_size = SGP40_WORD_LEN + 1
-        reply_len = len * chunk_size  # CRC every word
-
-        data = []
-
+        reply_len = count * chunk_size
         params = self.i2c.i2c_read([], reply_len)
         response = bytearray(params["response"])
-
+        data = []
         for i in range(0, reply_len, chunk_size):
             if not _check_crc8(
                 response[i : i + SGP40_WORD_LEN], response[i + SGP40_WORD_LEN]
             ):
                 self._log(WARNING, "Checksum error on read!")
             data.append(unpack_from(">H", response[i : i + SGP40_WORD_LEN])[0])
-
         return data
 
     def _log(self, level, msg):

@@ -4,13 +4,10 @@ This is a [Klipper](https://www.klipper3d.org/) module that provides support for
 
 ## Requirements
 
-This module requires:
-
 - **Klipper**: v0.13.0-159 or newer
-- **Kalico**: commit `fb7b58f` (2026-01-22) or newer
 
-These versions include improved I2C retry logic and NACK handling that are essential for reliable sensor communication.
-Older versions are no longer supported.
+> [!NOTE]
+> This module should work in [Kalico](https://docs.kalico.gg/), but expect periodic printer shutdowns from I2C disconnections.
 
 ## Installation instructions
 
@@ -71,6 +68,13 @@ sensor_type: SGP40
 #   The name of the temperature sensor to use as reference for humidity
 #   compensation of the VOC raw measurement. If not defined calculations
 #   will assume 50% humidity.
+#
+#   WARNING: Any I2C sensor configured as ref_temp_sensor or
+#   ref_humidity_sensor will have its I2C error handling modified so that
+#   transient NACK errors are logged rather than triggering a printer
+#   shutdown. These sensors MUST NOT be used for heater control, as this
+#   modification would prevent a hardware fault from safely shutting down
+#   the printer.
 #heater: extruder
 #   Name of the config section defining any heater that produces VOCs.
 #   If a comma separated list of heater names is provided here, then
@@ -84,6 +88,12 @@ sensor_type: SGP40
 #   are paired (e.g. intake and exhaust), this keeps their VOC index readings
 #   on a comparable scale. Set to the other sensor's name on both sensors.
 ```
+
+> [!WARNING]
+> Any I2C sensor configured as `ref_temp_sensor` or `ref_humidity_sensor` will have its I2C
+> error handling modified so that transient NACK errors are logged rather than triggering a
+> printer shutdown. These sensors **must not** be used for heater control — this modification
+> would prevent a hardware fault from safely shutting down the printer.
 
 ### Example
 
